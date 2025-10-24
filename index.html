@@ -90,12 +90,11 @@
 <body>
     <div class="container">
         <h1>Environmental Toxin Analyzer</h1>
-        <div class="file-upload-container">
-            <p id="dictionaryStatus">Upload your Ayus Lab report</p>
-            
-            <input type="file" id="dictionaryFile" accept=".csv" style="display: none;">
-            <label for="dictionaryFile" class="upload-label" style="display: none;">1. Upload Toxin Dictionary (CSV)</label>
+        <p id="mainInstruction">Upload your Ayus Lab report</p>
 
+        <div class="file-upload-container">
+            <p id="dictionaryStatus">Status: Loading Dictionary...</p>
+            
             <input type="file" id="reportFile" accept=".pdf">
             <label for="reportFile" class="upload-label">Upload Toxin Report (PDF)</label>
             <p id="reportStatus">Status: Ready.</p>
@@ -155,7 +154,6 @@
         // --- Dictionary & PDF Loading ---
 
         function loadDictionary() {
-            // FIX: Fetch the CSV directly from the server path for Vercel deployment
             fetch('toxin-risk-dictionary.csv')
                 .then(response => {
                     if (!response.ok) {
@@ -178,7 +176,7 @@
                                     dictionaryData.set(normalizedName, row);
                                 }
                             });
-                            // UI CLEANUP: Update status without being verbose
+                            // UI CLEANUP: Only show load status in the instruction section
                             document.getElementById('dictionaryStatus').textContent = `Dictionary loaded (${dictionaryData.size} analytes).`;
                             document.getElementById('reportStatus').textContent = `Status: Ready.`;
                             checkReady();
@@ -190,7 +188,7 @@
                 })
                 .catch(error => {
                     console.error("Dictionary Fetch Error:", error);
-                    document.getElementById('dictionaryStatus').textContent = `❌ ERROR: Could not load dictionary. Check console.`;
+                    document.getElementById('dictionaryStatus').textContent = `❌ ERROR: Could not load dictionary. Please check your file name.`;
                 });
         }
 
@@ -209,7 +207,7 @@
             }
         }
 
-        // --- PDF Toxin Data Extraction Logic (Final, Ultra-Robust Version) ---
+        // --- PDF Toxin Data Extraction Logic (Most Robust Version) ---
 
         async function extractToxinData(pdf) {
             if (!dictionaryData || dictionaryData.size === 0) {
@@ -220,7 +218,6 @@
             const extractedAnalytes = [];
             const numPages = pdf.numPages;
 
-            // Create a map of normalized names to original names for robust searching
             const normalizedToxinMap = new Map();
             Array.from(dictionaryData.values()).forEach(entry => {
                 normalizedToxinMap.set(normalizeAnalyte(entry.Analyte), entry.Analyte);
@@ -230,43 +227,33 @@
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                const textItems = textContent.items.map(item => cleanText(item));
+                const textItems = textContent.items.map(item => ({ str: cleanText(item.str), transform: item.transform, width: item.width }));
                 
-                // Iterate through the PDF text items to find a normalized match
-                textItems.forEach((textItem, nameIndex) => {
-                    const normalizedText = normalizeAnalyte(textItem);
+                // Identify all potential analyte names on this page
+                textItems.forEach((item, nameIndex) => {
+                    const normalizedText = normalizeAnalyte(item.str);
                     
-                    // Check if the current item is a known analyte name
                     if (normalizedToxinMap.has(normalizedText)) {
                         const originalName = normalizedToxinMap.get(normalizedText);
                         
-                        let refValue = NaN;
-                        let measurementValue = NaN;
+                        let candidates = [];
                         
-                        // Search for Ref Value and Measurement Value in the 30 subsequent items
+                        // Search for ALL numeric candidates in the 30 subsequent items
                         for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 30; j++) {
-                            const currentItem = textItems[j];
-                            const numericValue = parseValue(currentItem);
+                            const numericValue = parseValue(textItems[j].str);
 
                             if (!isNaN(numericValue) && numericValue > 0) {
-                                // 1. First valid number after name is the Reference Value
-                                if (isNaN(refValue)) {
-                                    refValue = numericValue;
-                                } 
-                                // 2. Second valid number is the Measurement Value
-                                else if (isNaN(measurementValue)) {
-                                    measurementValue = numericValue;
-                                    break; // Found both critical numbers, stop searching
-                                }
+                                candidates.push({ value: numericValue, index: j });
                             }
+                            if (candidates.length >= 2) break; // Optimization: stop after two candidates found
                         }
                         
-                        // Heuristic success condition
-                        if (!isNaN(refValue) && !isNaN(measurementValue)) {
+                        // Select the first two unique candidates as Reference and Measurement
+                        if (candidates.length >= 2) {
                             extractedAnalytes.push({
                                 Analyte: originalName,
-                                Ref_Value_Report: refValue,
-                                Measurement: measurementValue,
+                                Ref_Value_Report: candidates[0].value,
+                                Measurement: candidates[1].value,
                             });
                         }
                     }
