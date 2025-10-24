@@ -151,6 +151,7 @@
             return parseFloat(cleaned);
         };
         
+        // This function cleans the analyte name for reliable map key and search matching.
         const normalizeAnalyte = (name) => cleanText(name).toLowerCase().replace(/[\s\(\)\/&-]/g, '');
 
         // --- Dictionary & PDF Loading ---
@@ -209,38 +210,50 @@
             }
         }
 
-        // --- PDF Toxin Data Extraction Logic (Simplified/Heuristic) ---
+        // --- PDF Toxin Data Extraction Logic (Finalized for maximum match success) ---
 
         async function extractToxinData(pdf) {
+            if (!dictionaryData || dictionaryData.size === 0) {
+                 alert('Error: Dictionary not loaded. Cannot extract PDF data.');
+                 return [];
+            }
+            
             const extractedAnalytes = [];
             const numPages = pdf.numPages;
 
-            // List of known analytes to guide the extraction heuristic
-            const toxinNames = ["Antimony", "Cobalt", "Titanium", "Cadmium", "Aluminium", "Mercury", "Zinc", "Arsenic", "Barium", "Lead", "Tetrachloromethane", "Benzene", "Xylene", "Toluene", "Aldrin", "Chlorothalonil", "PCB 153", "p-p-DDE", "Hexachlorobenzene", "Permethrin", "Dichloromethane", "Trichloroethene", "Tetrachloroethene"]; 
+            // Create a map of normalized names to original names for robust searching
+            const normalizedToxinMap = new Map();
+            Array.from(dictionaryData.values()).forEach(entry => {
+                // Key is normalized name, Value is the original dictionary name (e.g., "p-p-DDE")
+                normalizedToxinMap.set(normalizeAnalyte(entry.Analyte), entry.Analyte);
+            });
+            
 
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                const textItems = textContent.items.map(item => item.str);
+                const textItems = textContent.items.map(item => cleanText(item)); // Pre-clean text items
                 
-                // Iterate through known toxin names to find their values in the text items
-                toxinNames.forEach(name => {
-                    const nameIndex = textItems.findIndex(item => cleanText(item) === name);
+                // Iterate through the PDF text items to find a normalized match
+                textItems.forEach((textItem, nameIndex) => {
+                    const normalizedText = normalizeAnalyte(textItem);
                     
-                    if (nameIndex !== -1) {
+                    if (normalizedToxinMap.has(normalizedText)) {
+                        const originalName = normalizedToxinMap.get(normalizedText);
+                        
                         let refValue, measurementValue;
                         
-                        // Search for Ref Value and Measurement Value after the name
+                        // Search for Ref Value and Measurement Value in the 10 subsequent items
                         for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 10; j++) {
-                            const currentItem = cleanText(textItems[j]);
+                            const currentItem = textItems[j];
                             const numericValue = parseValue(currentItem);
 
                             if (!isNaN(numericValue) && numericValue > 0) {
-                                // First valid number after name is likely the Reference Value
+                                // 1. First valid number after name is the Reference Value
                                 if (!refValue) {
                                     refValue = numericValue;
                                 } 
-                                // Second valid number (and different from refValue) is likely Measurement Value
+                                // 2. Second valid number (and different from refValue) is the Measurement Value
                                 else if (!measurementValue && numericValue !== refValue) {
                                     measurementValue = numericValue;
                                     break; // Found both critical numbers
@@ -251,7 +264,7 @@
                         // Heuristic success condition
                         if (refValue && measurementValue) {
                             extractedAnalytes.push({
-                                Analyte: name,
+                                Analyte: originalName,
                                 Ref_Value_Report: refValue,
                                 Measurement: measurementValue,
                             });
@@ -259,7 +272,8 @@
                     }
                 });
             }
-            // Remove duplicates and return unique, successful extractions
+            
+            // Filter the final list to keep only unique analytes
             const uniqueAnalytes = Array.from(new Set(extractedAnalytes.map(a => a.Analyte)))
                                         .map(name => extractedAnalytes.find(a => a.Analyte === name));
             return uniqueAnalytes;
