@@ -1,0 +1,19 @@
+Analyte,SampleType,Ref_Value,Unit,Carcinogen,Neurotoxin,Organ_System_1,Organ_System_2,Key_Health_Effect,Primary_Source
+Aluminium,blood,20.5,µg/l,No,Possible,Neurological,-,"Possible link to Alzheimer's disease; osteomalacia/bone pain.",Antacids, Vaccines, Deodorants, Food Additives, Dialysis
+Antimony,blood,0.2,µg/l,Possible,No,Cardiovascular,Respiratory,Increased risk of cardiovascular/respiratory disease.,Flame retardants, PET bottles, Ammunition, Tattoos
+Arsenic,urine,15.0,µg/l,Yes (Skin, Lung, Bladder),Yes,Cardiovascular,Neurological,Skin lesions, various cancers, cardiovascular damage.,Contaminated water/food (rice, seafood), Semiconductors, Pesticides
+Barium,blood,2.9,µg/l,No,Yes,Cardiovascular,Nervous System,Elevated blood pressure, heart rhythm abnormalities, muscle weakness.,Oil/gas drilling, Paints/Pigments, Pyrotechnics
+Cadmium,blood,0.05,µg/l,Yes (Lung, Prostate),Yes (Chronic exposure),Kidneys,Bones/Skeleton,"Severe kidney and bone damage (Itai-Itai), cancer risk.",Tobacco smoke, Ni/Cd batteries, Shellfish, Phosphate fertilisers
+Cobalt,blood,0.05,µg/l,Possible,Yes,Cardiovascular,Thyroid,"Cardiomyopathy, nerve deafness, thyroid dysfunction.",Prosthetic implants, Pigments, Vitamin B12
+Lead,blood,40.0,µg/l,No,Yes,Neurological,Kidneys,"Cognitive impairment, developmental disorders, high blood pressure.",Older paint/pipes, Ammunition, Tobacco smoke, Ayurvedic products
+Mercury,blood,0.9,µg/l,No,Yes,Neurological,Liver/Kidney,"Neurological effects (tremors, cognitive disorders), liver/kidney damage.",Fish/Seafood, Dental amalgam, Fluorescent lamps
+Titanium,blood,3.0,µg/l,No,No,Respiratory,Immune System,Lung inflammation (inhalation), possible immune reaction.,Implants, Paints, Cosmetics (sunscreen), Food Additives
+Zinc,blood,750.0,µg/l,No,No,Immune System,Metabolism,Overload can inhibit copper/iron absorption; immune suppression.,Supplements, Galvanized metals
+Benzene,blood,0.2,µg/l,Yes (Leukaemia),No,Hematopoietic,Liver/Kidneys,Known human carcinogen (leukaemia), organ damage.,Petrol/Car Exhaust, Chemical raw material (plastics, dyes)
+Dichloromethane,blood,500.0,ng/l,Possible,Yes (Chronic),Central Nervous System,Liver/Kidneys,"Carcinogenic potential, liver/kidney damage, generalised anoxia.",Solvent, Paint stripper
+Tetrachloroethene,blood,500.0,ng/l,Possible (Kidney/Liver),Yes,Central Nervous System,Liver/Kidneys,Liver/kidney damage, neurological effects.,Dry cleaning solvent, Metal degreaser
+Trichloroethene,blood,500.0,ng/l,Possible (Lymphoma),Yes,Central Nervous System,Liver/Kidneys,CNS disruption, liver/kidney damage, cardiac arrhythmias.,Degreasing agent, Solvent
+Hexachlorobenzene (HCB),blood,10.0,ng/l,No,No,Liver,Skin,Porphyria, liver enlargement, skin problems.,Former fungicide (seed treatment), Industrial by-product
+PCB 153,blood,10.0,ng/l,Possible (Breast Cancer),Yes,Endocrine (Thyroid),Liver,"Endocrine disruption, liver abnormalities, potential cancer/diabetes risk.",Coolants/Insulating fluids, Older electrical appliances
+Permethrin,blood,0.2,µg/l,No,Yes (Irreversible),Central Nervous System,Respiratory,"Neurotoxin, muscle twitching, chronic toxic encephalopathy.",Insecticide (agriculture, indoor), Scabies treatment
+p-p-DDE,blood,50.0,ng/l,No,Yes,Endocrine,Reproductive,Thyroid disruption, anti-androgenic effects.,Metabolite of DDT (insecticide)

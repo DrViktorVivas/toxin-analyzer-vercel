@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Toxin Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #8b0000; /* Dark Red for Toxin focus */
+        }
+        h2 {
+            color: #555;
+        }
+        .file-upload-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            border: 2px dashed #a00;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            background-color: #ffeaea;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-label {
+            background-color: #8b0000;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        .upload-label:hover {
+            background-color: #a52a2a;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .status-HIGH, .status-VERY_HIGH { color: #8b0000; font-weight: bold; }
+        .status-IN_RANGE { color: #28a745; }
+        .btn-download {
+            background-color: #0056b3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        .btn-download:hover {
+            background-color: #004080;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Environmental Toxin Analyzer</h1>
+        <p>Upload the <code>toxin-risk-dictionary.csv</code> and the Ayus Labs Toxin PDF to begin analysis.</p>
+
+        <div class="file-upload-container">
+            <input type="file" id="dictionaryFile" accept=".csv">
+            <label for="dictionaryFile" class="upload-label">1. Upload Toxin Dictionary (CSV)</label>
+            <p id="dictionaryStatus">Status: Awaiting CSV upload.</p>
+            
+            <input type="file" id="reportFile" accept=".pdf">
+            <label for="reportFile" class="upload-label">2. Upload Toxin Report (PDF)</label>
+            <p id="reportStatus">Status: Awaiting PDF upload.</p>
+            
+            <button id="analyzeBtn" class="upload-label" style="background-color: #28a745; display: none;">3. RUN TOXIN ANALYSIS</button>
+        </div>
+
+        <div id="results" style="display: none;">
+            <button id="downloadPdfBtn" class="btn-download">Download Toxin Risk Report (PDF)</button>
+            <hr>
+            
+            <h2>Toxicity Risk Summary</h2>
+            <div id="riskSummary"></div>
+            
+            <hr>
+
+            <h2>Detailed Analyte Results</h2>
+            <table id="analyteTable">
+                <thead>
+                    <tr>
+                        <th>Analyte</th>
+                        <th>Measurement</th>
+                        <th>Reference (ULN)</th>
+                        <th>Status</th>
+                        <th>Ratio (Meas/Ref)</th>
+                        <th>Key Health Effect</th>
+                        <th>Primary Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js';
+        
+        let dictionaryData = null;
+        let reportData = null;
+        let analysisResults = [];
+
+        // --- Utility Functions ---
+
+        // Simple function to clean and normalize a string
+        const cleanText = (text) => text ? String(text).replace(/[\r\n\s\t]+/g, ' ').trim() : '';
+        
+        // Function to safely parse float from a string containing µg/l, ng/l, etc.
+        const parseValue = (text) => {
+            if (!text) return NaN;
+            let cleaned = text.replace(/[^0-9.,]/g, ''); // Remove all non-numeric and non-dot/comma chars
+            cleaned = cleaned.replace(',', '.'); // Replace comma decimal with dot decimal
+            return parseFloat(cleaned);
+        };
+        
+        // Function to normalize analyte names for matching
+        const normalizeAnalyte = (name) => cleanText(name).toLowerCase().replace(/[\s\(\)\/&-]/g, '');
+
+        // --- Dictionary & PDF Loading ---
+
+        function loadDictionary() {
+            const file = document.getElementById('dictionaryFile').files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // Convert the dictionary array into a map for fast lookup
+                    dictionaryData = new Map();
+                    results.data.forEach(row => {
+                        const normalizedName = normalizeAnalyte(row.Analyte);
+                        if (normalizedName) {
+                            // Ensure numeric fields are correctly parsed, and safe access
+                            row.Ref_Value = parseValue(row.Ref_Value);
+                            row.Carcinogen = cleanText(row.Carcinogen);
+                            row.Neurotoxin = cleanText(row.Neurotoxin);
+                            dictionaryData.set(normalizedName, row);
+                        }
+                    });
+
+                    document.getElementById('dictionaryStatus').textContent = `Status: Dictionary loaded with ${dictionaryData.size} analytes.`;
+                    checkReady();
+                },
+                error: function(error) {
+                    alert('Error parsing CSV dictionary: ' + error);
+                }
+            });
+        }
+
+        async function loadReport() {
+            const file = document.getElementById('reportFile').files[0];
+            if (!file) return;
+
+            try {
+                const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+                reportData = await extractToxinData(pdf);
+                document.getElementById('reportStatus').textContent = `Status: Report parsed with ${reportData.length} analytes detected.`;
+                checkReady();
+            } catch (e) {
+                console.error("PDF Parsing Error:", e);
+                alert("Error parsing PDF. Check the console for details.");
+            }
+        }
+
+        // --- PDF Toxin Data Extraction Logic ---
+
+        async function extractToxinData(pdf) {
+            const extractedAnalytes = [];
+            const numPages = pdf.numPages;
+
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const textItems = textContent.items.map(item => item.str);
+                const fullText = textItems.join(' ');
+                
+                // Regex to find "Analyte: [Name] Reference: [Ref] Measurement: [Meas]" (from page 1 box)
+                // or general table rows: [Name] [Ref] [Unit] [Meas] [Comment]
+                
+                // Simple pattern for table extraction, looking for Analytes followed by values
+                // This is a simplified approach, a more robust library might be needed for perfect extraction
+                const regex = /([A-Z][a-z]+(?: [A-Z][a-z]+)?)\s+([\d.,]+)\s*(\S+\/\S+)\s+([\d.,]+)\s*(\S+)\s*(Traces|Within\s+range|Very\s+high|High)/gi;
+                let match;
+
+                while ((match = regex.exec(fullText)) !== null) {
+                    const analyteName = cleanText(match[1]);
+                    // Assuming the structure is: [Name] [Ref Value] [Unit] [Measurement Value] [Unit] [Comment]
+                    // The report structure is often cleaner: Parameter | Reference | Measurement | Comment
+                    // The simple regex above is too prone to errors. We will rely on proximity and known analytes.
+                    
+                    // --- REVISED Extraction Logic (Scanning for known structure from Kroll_Nick_4524.pdf) ---
+                    // The tables follow a pattern: [Analyte Name] [Ref] [Unit] [Meas] [Unit] [Comment]
+                    // Let's use a simpler, more robust pattern to find name and its two key numbers in proximity.
+                    
+                    // Look for known analytes from the report followed by two numeric values (Ref and Meas)
+                    const toxinNames = ["Antimony", "Cobalt", "Titanium", "Cadmium", "Aluminium", "Mercury", "Zinc", "Arsenic", "Barium", "Lead", "Tetrachloromethane", "Benzene", "Xylene", "Toluene", "Aldrin", "Chlorothalonil", "PCB 153", "p-p-DDE"]; 
+                    
+                    toxinNames.forEach(name => {
+                        const nameIndex = textItems.findIndex(item => cleanText(item) === name);
+                        
+                        if (nameIndex !== -1) {
+                            // Search for Ref Value, Unit, Measurement Value, and Comment after the name
+                            // This relies on the table columns being sequential and predictable
+                            let refValue, unit, measurementValue, comment;
+                            
+                            // Iterate through subsequent items
+                            for (let j = nameIndex + 1; j < textItems.length; j++) {
+                                const currentItem = cleanText(textItems[j]);
+                                
+                                if (!refValue && parseValue(currentItem)) {
+                                    refValue = parseValue(currentItem);
+                                } else if (refValue && !unit && currentItem.match(/(µg|ng)\/l/)) {
+                                    unit = currentItem;
+                                } else if (refValue && unit && !measurementValue && parseValue(currentItem) && parseValue(currentItem) !== refValue) {
+                                    measurementValue = parseValue(currentItem);
+                                } else if (refValue && unit && measurementValue && currentItem.match(/(µg|ng)\/l/)) {
+                                    // Found unit for measurement, ignore.
+                                } else if (refValue && unit && measurementValue && !comment && (currentItem.includes('range') || currentItem.includes('high') || currentItem.includes('Traces'))) {
+                                    comment = currentItem;
+                                    break; // Found all key pieces, stop search for this analyte
+                                }
+                            }
+                            
+                            if (refValue && measurementValue) {
+                                extractedAnalytes.push({
+                                    Analyte: name,
+                                    Ref_Value_Report: refValue,
+                                    Measurement: measurementValue,
+                                    Unit_Report: unit || 'N/A',
+                                    Comment_Report: comment || 'N/A'
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+            // Remove duplicates and return unique, successful extractions
+            const uniqueAnalytes = Array.from(new Set(extractedAnalytes.map(a => a.Analyte)))
+                                        .map(name => extractedAnalytes.find(a => a.Analyte === name));
+            return uniqueAnalytes;
+        }
+
+
+        // --- Core Toxin Risk Analysis Logic ---
+
+        function evaluateAnalytes() {
+            analysisResults = [];
+            const riskTally = {
+                'Neurological': 0, 'Kidneys': 0, 'Cardiovascular': 0, 'Respiratory': 0, 
+                'Endocrine': 0, 'Liver': 0, 'Immune System': 0, 'Bones/Skeleton': 0,
+                'Hematopoietic': 0, 'Skin': 0, 'Central Nervous System': 0, 'Thyroid': 0
+            };
+            const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
+            const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
+
+            if (!reportData || !dictionaryData) {
+                alert('Please upload both the dictionary and the report.');
+                return;
+            }
+
+            reportData.forEach(reportItem => {
+                const normalizedName = normalizeAnalyte(reportItem.Analyte);
+                const dictEntry = dictionaryData.get(normalizedName);
+                
+                if (!dictEntry) {
+                    analysisResults.push({
+                        Analyte: reportItem.Analyte, Status: 'DICTIONARY MISSING', 
+                        Measurement: reportItem.Measurement, Ref_Value_Report: reportItem.Ref_Value_Report, 
+                        ToxicityRatio: 'N/A', Key_Health_Effect: 'N/A', Primary_Source: 'N/A'
+                    });
+                    return;
+                }
+
+                const measurement = reportItem.Measurement;
+                const reference = dictEntry.Ref_Value;
+                const toxicityRatio = reference > 0 ? (measurement / reference) : 0;
+                let status = 'IN-RANGE';
+                
+                // Determine Status (using the report's thresholds as a guide)
+                if (toxicityRatio > 2.0) {
+                    status = 'VERY_HIGH';
+                } else if (toxicityRatio > 1.1) {
+                    status = 'HIGH';
+                } else if (toxicityRatio > 1.0) {
+                    status = 'ELEVATED';
+                }
+
+                // If flagged (HIGH or VERY HIGH), tally the risks
+                if (status === 'HIGH' || status === 'VERY_HIGH' || status === 'ELEVATED') {
+                    // Tally Organ Systems
+                    [dictEntry.Organ_System_1, dictEntry.Organ_System_2].forEach(system => {
+                        const cleanSystem = cleanText(system);
+                        if (cleanSystem && riskTally[cleanSystem] !== undefined) {
+                            riskTally[cleanSystem]++;
+                        }
+                    });
+
+                    // Tally Carcinogen Risk
+                    const carcinogenStatus = cleanText(dictEntry.Carcinogen);
+                    if (carcinogenStatus.toLowerCase().startsWith('yes')) {
+                        carcinogenCount.Yes++;
+                    } else if (carcinogenStatus.toLowerCase().startsWith('possible')) {
+                        carcinogenCount.Possible++;
+                    }
+                    
+                    // Tally Neurotoxin Risk
+                    const neurotoxinStatus = cleanText(dictEntry.Neurotoxin);
+                    if (neurotoxinStatus.toLowerCase().startsWith('yes')) {
+                        neurotoxinCount.Yes++;
+                    } else if (neurotoxinStatus.toLowerCase().startsWith('possible')) {
+                        neurotoxinCount.Possible++;
+                    }
+                }
+                
+                // Store result
+                analysisResults.push({
+                    Analyte: dictEntry.Analyte,
+                    Measurement: measurement + ' ' + dictEntry.Unit,
+                    Ref_Value: reference + ' ' + dictEntry.Unit,
+                    Status: status,
+                    ToxicityRatio: toxicityRatio.toFixed(2) + 'x',
+                    Key_Health_Effect: dictEntry.Key_Health_Effect || 'N/A',
+                    Primary_Source: dictEntry.Primary_Source || 'N/A',
+                    // Pass through flags for PDF report
+                    Carcinogen: dictEntry.Carcinogen,
+                    Neurotoxin: dictEntry.Neurotoxin,
+                    Organ_System_1: dictEntry.Organ_System_1,
+                    Organ_System_2: dictEntry.Organ_System_2,
+                });
+            });
+
+            // Display results
+            displayAnalyteTable();
+            displayRiskSummary(riskTally, carcinogenCount, neurotoxinCount);
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // --- Display Functions ---
+
+        function displayAnalyteTable() {
+            const tableBody = document.getElementById('analyteTable').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = ''; // Clear previous results
+
+            analysisResults
+                .sort((a, b) => b.ToxicityRatio.localeCompare(a.ToxicityRatio)) // Sort by highest ratio first
+                .forEach(result => {
+                const row = tableBody.insertRow();
+                const statusClass = `status-${result.Status.replace(/[\s-]/g, '_').toUpperCase()}`;
+
+                row.insertCell().textContent = result.Analyte;
+                row.insertCell().textContent = result.Measurement;
+                row.insertCell().textContent = result.Ref_Value;
+                row.insertCell().innerHTML = `<span class="${statusClass}">${result.Status.replace(/_/g, ' ')}</span>`;
+                row.insertCell().textContent = result.ToxicityRatio;
+                row.insertCell().textContent = result.Key_Health_Effect;
+                row.insertCell().textContent = result.Primary_Source;
+            });
+        }
+
+        function displayRiskSummary(riskTally, carcinogenCount, neurotoxinCount) {
+            const summaryDiv = document.getElementById('riskSummary');
+            summaryDiv.innerHTML = '';
+            
+            // 1. Organ Burden Summary
+            const sortedSystems = Object.entries(riskTally)
+                .filter(([, count]) => count > 0)
+                .sort(([, a], [, b]) => b - a);
+
+            if (sortedSystems.length > 0) {
+                let systemHtml = '<h3>Organ System Burden (Tally of Flagged Toxins)</h3><ul>';
+                sortedSystems.forEach(([system, count]) => {
+                    systemHtml += `<li><strong>${system}:</strong> ${count} Toxins Flagged</li>`;
+                });
+                systemHtml += '</ul>';
+                summaryDiv.innerHTML += systemHtml;
+            } else {
+                summaryDiv.innerHTML += '<p>No toxins were flagged above the reference value (1.1x) to calculate organ burden.</p>';
+            }
+
+            // 2. Critical Risk Summary
+            let riskHtml = '<h3>Critical Toxicity Flags</h3><ul>';
+            
+            const totalCarcinogens = carcinogenCount.Yes + carcinogenCount.Possible;
+            if (totalCarcinogens > 0) {
+                riskHtml += `<li><strong>Carcinogen Risk:</strong> ${carcinogenCount.Yes} Known Cancer-Link Toxins, ${carcinogenCount.Possible} Possible Cancer-Link Toxins.</li>`;
+            }
+            
+            const totalNeurotoxins = neurotoxinCount.Yes + neurotoxinCount.Possible;
+            if (totalNeurotoxins > 0) {
+                riskHtml += `<li><strong>Neurotoxin Risk:</strong> ${neurotoxinCount.Yes} Known Neurotoxins, ${neurotoxinCount.Possible} Possible Neurotoxins.</li>`;
+            }
+
+            if (totalCarcinogens === 0 && totalNeurotoxins === 0 && sortedSystems.length > 0) {
+                riskHtml += '<li>No highly critical (Carcinogen/Neurotoxin) toxins were flagged.</li>';
+            } else if (sortedSystems.length === 0) {
+                riskHtml += '<li>No toxins were flagged above the reference value.</li>';
+            }
+            riskHtml += '</ul>';
+            summaryDiv.innerHTML += riskHtml;
+        }
+
+        // --- Control Flow ---
+
+        function checkReady() {
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (dictionaryData && reportData && reportData.length > 0) {
+                analyzeBtn.style.display = 'block';
+            } else {
+                analyzeBtn.style.display = 'none';
+            }
+        }
+        
+        // --- PDF Generation Logic (Updated) ---
+
+        const executePdfDownload = () => {
+             if (!analysisResults || analysisResults.length === 0) {
+                 alert("Please run the analysis first.");
+                 return;
+             }
+             
+             try {
+                // Initialize jspdf
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'pt', 'a4');
+                const margin = 40;
+                let finalY = margin;
+
+                // Title
+                doc.setFontSize(18);
+                doc.setTextColor('#8B0000');
+                doc.text("Environmental Toxin Analysis Report", margin, finalY);
+                finalY += 30;
+
+                // Toxin Risk Summary Table Setup
+                const riskData = [];
+                const riskTally = {};
+                const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
+                const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
+
+                analysisResults.filter(r => r.Status !== 'IN-RANGE').forEach(r => {
+                    [r.Organ_System_1, r.Organ_System_2].forEach(system => {
+                        const cleanSystem = cleanText(system);
+                        if (cleanSystem && cleanSystem !== '-') {
+                            riskTally[cleanSystem] = (riskTally[cleanSystem] || 0) + 1;
+                        }
+                    });
+                    if (cleanText(r.Carcinogen).toLowerCase().startsWith('yes')) carcinogenCount.Yes++;
+                    else if (cleanText(r.Carcinogen).toLowerCase().startsWith('possible')) carcinogenCount.Possible++;
+                    if (cleanText(r.Neurotoxin).toLowerCase().startsWith('yes')) neurotoxinCount.Yes++;
+                    else if (cleanText(r.Neurotoxin).toLowerCase().startsWith('possible')) neurotoxinCount.Possible++;
+                });
+
+                // Organ Burden Summary
+                doc.setFontSize(14);
+                doc.setTextColor('#333');
+                doc.text("Organ System Burden Summary", margin, finalY);
+                finalY += 15;
+                
+                const sortedSystems = Object.entries(riskTally)
+                    .filter(([, count]) => count > 0)
+                    .sort(([, a], [, b]) => b - a);
+                    
+                if (sortedSystems.length > 0) {
+                    sortedSystems.forEach(([system, count]) => {
+                        riskData.push([system, `${count} Toxins Flagged`]);
+                    });
+                    
+                    doc.autoTable({
+                        startY: finalY + 5,
+                        head: [['Organ System', 'Burden Count']],
+                        body: riskData,
+                        theme: 'grid',
+                        headStyles: { fillColor: '#F0E6E6', textColor: '#555' },
+                        columnStyles: { 0: { fontStyle: 'bold' } }
+                    });
+                    finalY = doc.lastAutoTable.finalY + 10;
+                } else {
+                    doc.text("No toxins were flagged above 1.1x the reference value.", margin, finalY + 5);
+                    finalY += 20;
+                }
+                
+                // Critical Risk Summary
+                doc.setFontSize(14);
+                doc.text("Critical Toxicity Flags", margin, finalY);
+                finalY += 15;
+                
+                const criticalData = [
+                    ['Carcinogen Risk (Known)', carcinogenCount.Yes > 0 ? `${carcinogenCount.Yes} Toxins` : 'None'],
+                    ['Carcinogen Risk (Possible)', carcinogenCount.Possible > 0 ? `${carcinogenCount.Possible} Toxins` : 'None'],
+                    ['Neurotoxin Risk (Known)', neurotoxinCount.Yes > 0 ? `${neurotoxinCount.Yes} Toxins` : 'None'],
+                    ['Neurotoxin Risk (Possible)', neurotoxinCount.Possible > 0 ? `${neurotoxinCount.Possible} Toxins` : 'None'],
+                ];
+
+                doc.autoTable({
+                    startY: finalY + 5,
+                    head: [['Risk Factor', 'Toxin Count']],
+                    body: criticalData,
+                    theme: 'grid',
+                    headStyles: { fillColor: '#F0E6E6', textColor: '#555' },
+                    columnStyles: { 1: { fontStyle: 'bold', halign: 'center' } }
+                });
+                finalY = doc.lastAutoTable.finalY + 20;
+
+
+                // Detailed Analyte Results Table
+                doc.setFontSize(18);
+                doc.text("Detailed Analyte Results", margin, finalY);
+                finalY += 15;
+
+                const tableData = analysisResults.map(r => [
+                    r.Analyte,
+                    r.Measurement,
+                    r.Ref_Value,
+                    r.Status.replace(/_/g, ' '),
+                    r.ToxicityRatio,
+                    r.Key_Health_Effect,
+                    r.Primary_Source
+                ]);
+                
+                const head = [['Analyte', 'Measurement', 'Reference (ULN)', 'Status', 'Ratio (M/R)', 'Key Health Effect', 'Primary Source']];
+
+                doc.autoTable({
+                    startY: finalY + 5,
+                    head: head,
+                    body: tableData,
+                    theme: 'grid',
+                    styles: { fontSize: 8 },
+                    headStyles: { fillColor: '#8B0000', textColor: '#FFF' },
+                    columnStyles: { 
+                        3: { cellWidth: 50 }, // Status column width
+                        4: { cellWidth: 40 }, // Ratio column width
+                    },
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.dataKey === 3) { // Status column
+                            let statusText = data.cell.text.join('');
+                            let textColor = '#333'; 
+                            
+                            if (statusText.includes('VERY HIGH') || statusText.includes('HIGH')) { textColor = '#8B0000'; // Dark Red
+                            } else if (statusText.includes('ELEVATED')) { textColor = '#ff8c00'; // Orange
+                            } else if (statusText.includes('IN RANGE')) { textColor = '#28a745'; // Green 
+                            }
+                            doc.setTextColor(textColor); 
+                        }
+                    },
+                    didDrawPage: function(data) {
+                        doc.setTextColor('#333');
+                    }
+                });
+                
+                doc.save("toxin_risk_analysis_report.pdf");
+             } catch (e) {
+                 console.error("PDF Generation Error:", e);
+                 alert("PDF generation failed. Check the console for error details.");
+             }
+        };
+
+
+        // --- Event Listeners ---
+        
+        document.getElementById('dictionaryFile').addEventListener('change', loadDictionary);
+        document.getElementById('reportFile').addEventListener('change', loadReport);
+        document.getElementById('analyzeBtn').addEventListener('click', evaluateAnalytes);
+        document.getElementById('downloadPdfBtn').addEventListener('click', executePdfDownload);
+    </script>
+</body>
+</html>
