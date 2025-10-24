@@ -1,19 +1,83 @@
 Analyte,SampleType,Ref_Value,Unit,Carcinogen,Neurotoxin,Organ_System_1,Organ_System_2,Key_Health_Effect,Primary_Source
-Aluminium,blood,20.5,µg/l,No,Possible,Neurological,-,"Possible link to Alzheimer's disease; osteomalacia/bone pain.",Antacids, Vaccines, Deodorants, Food Additives, Dialysis
+Aluminium,blood,20.5,µg/l,No,Possible,Neurological,Bones,"Possible link to Alzheimer's disease; osteomalacia/bone pain.",Antacids, Vaccines, Deodorants, Food Additives, Dialysis
 Antimony,blood,0.2,µg/l,Possible,No,Cardiovascular,Respiratory,Increased risk of cardiovascular/respiratory disease.,Flame retardants, PET bottles, Ammunition, Tattoos
-Arsenic,urine,15.0,µg/l,Yes (Skin, Lung, Bladder),Yes,Cardiovascular,Neurological,Skin lesions, various cancers, cardiovascular damage.,Contaminated water/food (rice, seafood), Semiconductors, Pesticides
+Arsenic,urine,15.0,µg/l,Yes (Skin, Lung, Bladder),Yes,Cardiovascular,Neurological,Skin lesions, various cancers, neurological damage.,Contaminated water/food (rice, seafood), Semiconductors, Pesticides
 Barium,blood,2.9,µg/l,No,Yes,Cardiovascular,Nervous System,Elevated blood pressure, heart rhythm abnormalities, muscle weakness.,Oil/gas drilling, Paints/Pigments, Pyrotechnics
+Bismuth,blood,0.2,µg/l,No,No,Gastrointestinal,Neurological,Encephalopathy (rare), nausea, vomiting, colic pain.,Pharmaceuticals (stomach meds), Dental fillings
 Cadmium,blood,0.05,µg/l,Yes (Lung, Prostate),Yes (Chronic exposure),Kidneys,Bones/Skeleton,"Severe kidney and bone damage (Itai-Itai), cancer risk.",Tobacco smoke, Ni/Cd batteries, Shellfish, Phosphate fertilisers
-Cobalt,blood,0.05,µg/l,Possible,Yes,Cardiovascular,Thyroid,"Cardiomyopathy, nerve deafness, thyroid dysfunction.",Prosthetic implants, Pigments, Vitamin B12
+Cobalt,blood,0.05,µg/l,Possible,Yes,Cardiovascular,Respiratory,"Cardiomyopathy, nerve deafness, 'hard metal lung disease'.",Prosthetic implants, Batteries, Vitamin B12
+Gadolinium,blood,0.05,µg/l,No,No,Kidneys,Respiratory,Kidney damage, respiratory problems (prolonged/excessive exposure).,MRI Contrast Agent
+Gallium,blood,0.06,µg/l,No,No,Kidneys,Integumentary,Kidney damage, tissue necrosis (rare with implants).,Semiconductor tech (LEDs), Dental prostheses
+Gold,blood,0.06,µg/l,No,No,Immune System,Joints,"Allergic reactions (gold allergy), used in Rheumatoid Arthritis meds.",Jewellery, Dental prosthetics, Medicine (Gold Salts)
+Indium,blood,0.05,µg/l,No,No,Respiratory,Lungs,"'Indium lung' (lung damage) from occupational inhalation.",Electronics (semiconductors), Solar cells
+Iridium,blood,0.05,µg/l,Possible (Animal Study),No,Immune System,Lungs,"Allergies, potential cancer risk (animal studies) from dust inhalation.",Jewellery, Catalysts, Medical Instruments
 Lead,blood,40.0,µg/l,No,Yes,Neurological,Kidneys,"Cognitive impairment, developmental disorders, high blood pressure.",Older paint/pipes, Ammunition, Tobacco smoke, Ayurvedic products
 Mercury,blood,0.9,µg/l,No,Yes,Neurological,Liver/Kidney,"Neurological effects (tremors, cognitive disorders), liver/kidney damage.",Fish/Seafood, Dental amalgam, Fluorescent lamps
-Titanium,blood,3.0,µg/l,No,No,Respiratory,Immune System,Lung inflammation (inhalation), possible immune reaction.,Implants, Paints, Cosmetics (sunscreen), Food Additives
-Zinc,blood,750.0,µg/l,No,No,Immune System,Metabolism,Overload can inhibit copper/iron absorption; immune suppression.,Supplements, Galvanized metals
+Nickel,blood,3.3,µg/l,Yes (Occupational),No,Respiratory,Integumentary,"Allergic dermatitis (eczema), respiratory problems.",Stainless steel, Jewellery, Batteries
+Palladium,blood,0.06,µg/l,No,No,Immune System,Respiratory,"Allergic skin reactions (dermatitis), respiratory problems from dust.",Catalytic converters, Dentistry, Jewellery
+Platinum,blood,0.06,µg/l,No,No,Immune System,Respiratory,"Cross-allergies (e.g., with Nickel), respiratory issues from dust.",Catalytic converters, Chemotherapy (Cisplatin), Jewellery
+Ruthenium,blood,0.06,µg/l,No,No,Respiratory,ENT,Nasal ulcers (from tetroxide exposure), low general toxicity.,Alloys, Electronics, Catalysis
+Silver,blood,0.4,µg/l,No,No,Integumentary,Skin,"Argyria (blue-grey skin discoloration) from excessive intake.",Jewellery, Medical applications (antimicrobial), Colloidal silver
+Tantalum,blood,0.06,µg/l,No,No,None,None,"Not inherently toxic; ethical and environmental concerns from mining.",Electronics (capacitors), Medical implants (bone substitutes)
+Tellurium,blood,0.05,µg/l,No,No,Respiratory,Metabolism,"'Tellurium breath' (garlic odor), respiratory/skin irritation.",Alloys, Electronics (semiconductors), Medicine (leprosy)
+Thallium,blood,0.06,µg/l,No,Yes,Neurological,Cardiovascular,"Extreme toxicity, hair loss, polyneuritis (nerve damage).",Historical rat poison, Electronics, Medical imaging
+Tin,blood,20.0,µg/l,No,Yes (Organotins),Endocrine,Neurological,"Endocrine disruption, neurological effects (organotins), gastrointestinal issues.",Tinplate (cans), Solder, Paints/Coatings
+Titanium,blood,3.0,µg/l,Possible (Nanoparticles),No,Respiratory,Immune System,"Lung irritation (inhalation of dust), potential carcinogenicity (nanoparticles).",Medical implants, Cosmetics (UV filter), Food additive (E171)
+Uranium,blood,30.0,µg/l,Possible,No,Kidneys,Bones,"Chemically toxic to kidneys, radioactivity risk to bone marrow.",Nuclear fuel, Depleted Uranium ammunition, Fertilisers
+Vanadium,blood,0.8,µg/l,Suspected,No,Respiratory,Lungs,Respiratory problems (bronchitis), suspected carcinogenicity.,Steel alloys, Catalysts
+Cerium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin/lung irritation (dust exposure), low toxicity.,Catalytic converters, Glass polishing
+Dysprosium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, lung irritation (dust exposure).,Permanent magnets, Nuclear reactors
+Erbium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, lung irritation (dust exposure), low toxicity.,Fibre optics, Lasers, Nuclear technology
+Europium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Electronics (phosphors), Banknote security
+Holmium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Lasers, Medical implants
+Lanthanum,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Batteries (NiMH), Camera lenses, Kidney disease medicine
+Lutetium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity (radioactive isotopes handled under strict control).,Targeted cancer therapy (Lu-177), Electronics
+Neodymium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, pulmonary embolism (inhalation risk).,Permanent magnets, Lasers
+Praseodymium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Permanent magnets, Welder's goggles (glass)
+Samarium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity (radioisotope used for cancer pain).,Permanent magnets, Cancer treatment (Sm-153)
+Scandium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Aerospace alloys, Sports equipment
+Terbium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Phosphors (green color), Magnets, Medical imaging
+Thorium,blood,0.05,µg/l,Yes (Lung, Bone),No,Lungs,Pancreas,"Cancer risk (Lung, Pancreatic, Bone) due to radioactivity.",Nuclear fuel, Gas mantles
+Thulium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity (radioisotopes used in X-ray/lasers).,Portable X-ray, Medical lasers
+Ytterbium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin irritation, low toxicity.,Fibre lasers, Atomic clocks
+Yttrium,blood,0.05,µg/l,No,No,Skin,Lungs,Skin/lung irritation (dust exposure), low toxicity.,LED phosphors, Medical YAG lasers
+Chromium,blood,0.9,µg/l,Yes (Hexavalent),No,Respiratory,Integumentary,"Asthma, respiratory cancer, dermatitis (cement), liver/kidney damage (Hexavalent).",Stainless steel, Electroplating, Tattoo ink
+Copper,serum,1397,µg/l,No,No,Liver,Nervous System,Wilson's disease (excess), Anemia/Osteoporosis (deficiency).,Electrical cables, Pipes, Food (seafood)
+Manganese,blood,13.5,µg/l,No,Yes (Excess),Neurological,Lungs,"Psychomotor disorders, psychosis (excess dust inhalation), neurological issues (deficiency).",Steel production, Batteries, Food (nuts/grains)
+Molybdenium,blood,13.0,µg/l,No,No,Joints,Metabolism,Gout, hyperuricaemia (excess), pneumoconiosis (inhalation).,Steel alloys, Catalysts
+Rubidium,blood,4145,µg/l,No,No,Cardiovascular,Muscles,"Hypertension, tachycardia, muscle cramps (excessive exposure).",Food, Electronics
+Strontium,blood,41.0,µg/l,No,No,Bones,Bones,"Radioactive Sr-90 risk (bone damage/cancer), non-radioactive is used for osteoporosis.",Fireworks, Dental care products, Osteoporosis medication
+Zinc,blood,7870,µg/l,No,No,Immune System,Metabolism,"Copper deficiency (excess), impaired wound healing (deficiency).",Galvanisation, Supplements, Brass alloys
+Acetone,blood,10.0,mg/l,No,Yes,Neurological,Skin,"Headaches, dizziness, eczema, brain/nerve damage.",Nail polish remover, Solvents, Paints/Coatings
 Benzene,blood,0.2,µg/l,Yes (Leukaemia),No,Hematopoietic,Liver/Kidneys,Known human carcinogen (leukaemia), organ damage.,Petrol/Car Exhaust, Chemical raw material (plastics, dyes)
-Dichloromethane,blood,500.0,ng/l,Possible,Yes (Chronic),Central Nervous System,Liver/Kidneys,"Carcinogenic potential, liver/kidney damage, generalised anoxia.",Solvent, Paint stripper
-Tetrachloroethene,blood,500.0,ng/l,Possible (Kidney/Liver),Yes,Central Nervous System,Liver/Kidneys,Liver/kidney damage, neurological effects.,Dry cleaning solvent, Metal degreaser
-Trichloroethene,blood,500.0,ng/l,Possible (Lymphoma),Yes,Central Nervous System,Liver/Kidneys,CNS disruption, liver/kidney damage, cardiac arrhythmias.,Degreasing agent, Solvent
-Hexachlorobenzene (HCB),blood,10.0,ng/l,No,No,Liver,Skin,Porphyria, liver enlargement, skin problems.,Former fungicide (seed treatment), Industrial by-product
-PCB 153,blood,10.0,ng/l,Possible (Breast Cancer),Yes,Endocrine (Thyroid),Liver,"Endocrine disruption, liver abnormalities, potential cancer/diabetes risk.",Coolants/Insulating fluids, Older electrical appliances
-Permethrin,blood,0.2,µg/l,No,Yes (Irreversible),Central Nervous System,Respiratory,"Neurotoxin, muscle twitching, chronic toxic encephalopathy.",Insecticide (agriculture, indoor), Scabies treatment
-p-p-DDE,blood,50.0,ng/l,No,Yes,Endocrine,Reproductive,Thyroid disruption, anti-androgenic effects.,Metabolite of DDT (insecticide)
+1-Butanol,blood,250,µg/l,No,Yes (Acute),Central Nervous System,Liver/Kidneys,"CNS disruption, drowsiness, respiratory/skin irritation.",Paints, Coatings, Brake fluids, Herbicides
+Trichlormethane (Chloroform),blood,0.5,µg/l,No,Yes,Central Nervous System,Liver/Kidneys,"CNS depression, liver damage, cardiac effects, formerly anaesthetic.",Water chlorination byproduct, Solvents
+Dichlormethane (methylene chloride),blood,500,ng/l,Possible,Yes (Chronic),Central Nervous System,Liver/Kidneys,"Carcinogenic potential, liver/kidney damage, generalised anoxia.",Solvent, Paint stripper
+Ethanol,blood,100,mg/l,Yes (Chronic Use),Yes (Chronic Use),Liver,Neurological,"Liver cirrhosis, Fetal Alcohol Syndrome, neurological numbness.",Alcoholic beverages
+Ethylbenzene,blood,0.1,µg/l,Possible,Yes,Nervous System,Skin,"Neurotoxicity, severe irritation, possible carcinogenic effect.",Plastics (Styrene precursor), Solvents
+Methylethylketone (MEK, 2-butanone),blood,100,µg/l,No,Yes,Central Nervous System,Liver/Kidneys,"Dizziness, headache, liver/kidney/pancreas damage.",Solvent for resins/paints, Deoiling agent
+Methyl isobutyl ketone,blood,100,µg/l,No,Yes,Central Nervous System,Liver/Kidneys,"Dizziness, headache, organ damage (liver, kidneys, pancreas).",Solvent for coatings/adhesives, Pharmaceutical extractant
+1-propanol,blood,100,µg/l,No,Yes,Central Nervous System,Skin,"Symptoms similar to alcohol poisoning, anaesthesia, skin irritation.",Pharmaceutical solvent, Cosmetics
+2-propanol,blood,100,µg/l,No,Yes,Central Nervous System,Cardiovascular,"CNS disorder, hypothermia, low blood pressure.",Disinfectants, Cleaning agents, Insecticides
+Tetrachloromethane,blood,0.5,µg/l,Yes,Yes,Liver,Kidneys,"Toxic liver/kidney damage, cardiac arrhythmias, circulatory collapse.",Solvent (cleaning/degreasing), Former flame retardant
+Toluene,blood,0.3,µg/l,No,Yes,Central Nervous System,Kidneys,"CNS disorders, headaches, dizziness, renal dysfunction.",Solvent for paints/varnishes, High performance fuels
+Trichloroethane,blood,500,ng/l,No,Yes,Central Nervous System,Liver,"CNS disorders, narcotic effects, liver damage.",Cleaning agent, Solvent
+Trichloroethene,blood,500,ng/l,Possible (Lymphoma),Yes,Central Nervous System,Liver/Kidneys,"CNS disruption, liver/kidney damage, cardiac arrhythmias.",Degreasing agent, Solvent
+Trimethylbenzene,blood,500,µg/l,No,Yes,Central Nervous System,Blood,"CNS disorders (fatigue, headache), irritation of mucous membranes.",Solvent, Dye/Perfume production
+Xylene,blood,0.5,µg/l,No,Yes,Central Nervous System,Respiratory,"CNS disorders, headaches, dizziness, pulmonary oedema (severe).",Solvent for paints/inks, Petroleum products
+Aldrin,blood,20,ng/l,No,Yes,Neurological,Cardiovascular,"Agitation, tremors, convulsions, drop in blood pressure, ADHD risk.",Former insecticide, Seed treatment
+Chlorpyrifos,blood,50,ng/l,No,Yes,Nervous System,Lungs,"Neurotoxic (inhibits acetylcholinesterase), seizures, respiratory distress.",Agricultural insecticide, Mosquito control
+Chlorothalonil,blood,200,ng/l,Possible,No,Skin,Eyes,Skin/eye irritation, possible carcinogenic effects.,Fungicide, Wood preservative
+Cyfluthrin,blood,0.2,µg/l,No,No,Skin,Gastrointestinal,Skin irritation, paraesthesia, gastrointestinal disorders.,Insecticide, Wood preservative
+Cypermethrin,blood,200,ng/l,No,Yes (Irreversible),Nervous System,Respiratory,"Neurotoxin, muscle twitching, seizures, altered consciousness.",Agricultural insecticide, Indoor pest control
+DDT (dichlorodiphenyltrichloroethane),blood,20,ng/l,No,Yes,Nervous System,Cardiovascular,"Neurotoxic (ion channel disruption), hyperexcitability, paralysis.",Former insecticide (malaria control)
+Deltamethrin,blood,0.2,µg/l,No,Yes (Irreversible),Nervous System,Respiratory,"Neurotoxin, muscle twitching, seizures, altered consciousness.",Agricultural insecticide, Indoor pest control
+Dichlofluanid,blood,50,ng/l,No,No,Skin,Eyes,Contact dermatitis, conjunctivitis, mutagenic properties.,Fungicide, Wood preservative
+Endosulfan (α,β),blood,20,ng/l,No,Yes,Neurological,Endocrine,"Neurotoxic (seizures, motor disturbances), hormonal disruption.",Insecticide, Acaricide, Wood preservative
+Heptachlor epoxide,blood,20,ng/l,No,Yes,Neurological,Nervous System,Gait disturbances, tremors, seizures.,Conversion from Heptachlor (former insecticide)
+Hexachlorobenzene (HCB),blood,10,ng/l,Yes,No,Liver,Skin,"Liver enlargement, porphyria, skin problems, multiple cancer risks.",Former fungicide, Industrial by-product
+Hexachlorocyclohexane (HCH),blood,10,ng/l,Yes (Gamma-isomer),Yes,Liver,Neurological,"Liver/kidney damage, coma (Beta-isomer), seizures (Gamma-isomer).",Former pesticide (Lindane), Industrial by-product
+Pentachlorophenol (PCP),blood,12,µg/l,Possible,Yes,Central Nervous System,Liver/Kidneys,"Chronic toxic encephalopathy, hair loss, possible leukaemia risk.",Wood preservative, Pesticides
+Permethrin,blood,0.2,µg/l,No,Yes (Irreversible),Central Nervous System,Nervous System,"Neurotoxin, muscle twitching, chronic toxic encephalopathy.",Insecticide, Topical scabies treatment
+Polychlorinated biphenyls (PCB 153),blood,10,ng/l,Possible (Breast Cancer),Yes,Endocrine (Thyroid),Liver,"Endocrine disruption, liver abnormalities, potential cancer/diabetes risk.",Coolants/Insulating fluids, Older electrical appliances
+Tolylfluanid,blood,250,ng/l,No,No,Skin,Eyes,Specific toxic effects not well documented; skin/eye irritation possible.,Fungicide, Wood preservative
