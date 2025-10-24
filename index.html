@@ -90,19 +90,17 @@
 <body>
     <div class="container">
         <h1>Environmental Toxin Analyzer</h1>
-        <p>This tool automatically loads the dictionary. Upload the Ayus Labs Toxin PDF to begin analysis.</p>
-
         <div class="file-upload-container">
-            <p id="dictionaryStatus">Status: Loading Toxin Dictionary...</p>
+            <p id="dictionaryStatus">Upload your Ayus Lab report</p>
             
             <input type="file" id="dictionaryFile" accept=".csv" style="display: none;">
             <label for="dictionaryFile" class="upload-label" style="display: none;">1. Upload Toxin Dictionary (CSV)</label>
 
             <input type="file" id="reportFile" accept=".pdf">
-            <label for="reportFile" class="upload-label">1. Upload Toxin Report (PDF)</label>
-            <p id="reportStatus">Status: Awaiting PDF upload.</p>
+            <label for="reportFile" class="upload-label">Upload Toxin Report (PDF)</label>
+            <p id="reportStatus">Status: Ready.</p>
             
-            <button id="analyzeBtn" class="upload-label" style="background-color: #28a745; display: none;">2. RUN TOXIN ANALYSIS</button>
+            <button id="analyzeBtn" class="upload-label" style="background-color: #28a745; display: none;">RUN TOXIN ANALYSIS</button>
         </div>
 
         <div id="results" style="display: none;">
@@ -180,8 +178,9 @@
                                     dictionaryData.set(normalizedName, row);
                                 }
                             });
-
-                            document.getElementById('dictionaryStatus').textContent = `✅ Dictionary loaded with ${dictionaryData.size} analytes from server.`;
+                            // UI CLEANUP: Update status without being verbose
+                            document.getElementById('dictionaryStatus').textContent = `Dictionary loaded (${dictionaryData.size} analytes).`;
+                            document.getElementById('reportStatus').textContent = `Status: Ready.`;
                             checkReady();
                         },
                         error: function(error) {
@@ -191,7 +190,7 @@
                 })
                 .catch(error => {
                     console.error("Dictionary Fetch Error:", error);
-                    document.getElementById('dictionaryStatus').textContent = `❌ ERROR: Could not load dictionary. Ensure 'toxin-risk-dictionary.csv' is in the root.`;
+                    document.getElementById('dictionaryStatus').textContent = `❌ ERROR: Could not load dictionary. Check console.`;
                 });
         }
 
@@ -210,7 +209,7 @@
             }
         }
 
-        // --- PDF Toxin Data Extraction Logic (Finalized for robust success) ---
+        // --- PDF Toxin Data Extraction Logic (Final, Ultra-Robust Version) ---
 
         async function extractToxinData(pdf) {
             if (!dictionaryData || dictionaryData.size === 0) {
@@ -224,29 +223,28 @@
             // Create a map of normalized names to original names for robust searching
             const normalizedToxinMap = new Map();
             Array.from(dictionaryData.values()).forEach(entry => {
-                // Key is normalized name, Value is the original dictionary name
                 normalizedToxinMap.set(normalizeAnalyte(entry.Analyte), entry.Analyte);
             });
             
-
+            // Iterate page by page, which is more reliable for complex table layouts
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                const textItems = textContent.items.map(item => cleanText(item)); // Pre-clean text items
+                const textItems = textContent.items.map(item => cleanText(item));
                 
                 // Iterate through the PDF text items to find a normalized match
                 textItems.forEach((textItem, nameIndex) => {
                     const normalizedText = normalizeAnalyte(textItem);
                     
+                    // Check if the current item is a known analyte name
                     if (normalizedToxinMap.has(normalizedText)) {
                         const originalName = normalizedToxinMap.get(normalizedText);
                         
                         let refValue = NaN;
                         let measurementValue = NaN;
                         
-                        // Search for Ref Value and Measurement Value in the 20 subsequent items
-                        // Increased search range and simplified logic is key here.
-                        for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 20; j++) {
+                        // Search for Ref Value and Measurement Value in the 30 subsequent items
+                        for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 30; j++) {
                             const currentItem = textItems[j];
                             const numericValue = parseValue(currentItem);
 
@@ -258,7 +256,7 @@
                                 // 2. Second valid number is the Measurement Value
                                 else if (isNaN(measurementValue)) {
                                     measurementValue = numericValue;
-                                    break; // Found both critical numbers
+                                    break; // Found both critical numbers, stop searching
                                 }
                             }
                         }
