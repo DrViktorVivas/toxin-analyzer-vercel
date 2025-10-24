@@ -210,7 +210,7 @@
             }
         }
 
-        // --- PDF Toxin Data Extraction Logic (Finalized for maximum match success) ---
+        // --- PDF Toxin Data Extraction Logic (Finalized for robust success) ---
 
         async function extractToxinData(pdf) {
             if (!dictionaryData || dictionaryData.size === 0) {
@@ -224,7 +224,7 @@
             // Create a map of normalized names to original names for robust searching
             const normalizedToxinMap = new Map();
             Array.from(dictionaryData.values()).forEach(entry => {
-                // Key is normalized name, Value is the original dictionary name (e.g., "p-p-DDE")
+                // Key is normalized name, Value is the original dictionary name
                 normalizedToxinMap.set(normalizeAnalyte(entry.Analyte), entry.Analyte);
             });
             
@@ -241,20 +241,22 @@
                     if (normalizedToxinMap.has(normalizedText)) {
                         const originalName = normalizedToxinMap.get(normalizedText);
                         
-                        let refValue, measurementValue;
+                        let refValue = NaN;
+                        let measurementValue = NaN;
                         
-                        // Search for Ref Value and Measurement Value in the 10 subsequent items
-                        for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 10; j++) {
+                        // Search for Ref Value and Measurement Value in the 20 subsequent items
+                        // Increased search range and simplified logic is key here.
+                        for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 20; j++) {
                             const currentItem = textItems[j];
                             const numericValue = parseValue(currentItem);
 
                             if (!isNaN(numericValue) && numericValue > 0) {
                                 // 1. First valid number after name is the Reference Value
-                                if (!refValue) {
+                                if (isNaN(refValue)) {
                                     refValue = numericValue;
                                 } 
-                                // 2. Second valid number (and different from refValue) is the Measurement Value
-                                else if (!measurementValue && numericValue !== refValue) {
+                                // 2. Second valid number is the Measurement Value
+                                else if (isNaN(measurementValue)) {
                                     measurementValue = numericValue;
                                     break; // Found both critical numbers
                                 }
@@ -262,7 +264,7 @@
                         }
                         
                         // Heuristic success condition
-                        if (refValue && measurementValue) {
+                        if (!isNaN(refValue) && !isNaN(measurementValue)) {
                             extractedAnalytes.push({
                                 Analyte: originalName,
                                 Ref_Value_Report: refValue,
