@@ -68,7 +68,9 @@
         th {
             background-color: #f2f2f2;
         }
-        .status-HIGH, .status-VERY_HIGH { color: #8b0000; font-weight: bold; }
+        .status-VERY_HIGH { color: #8b0000; font-weight: bold; }
+        .status-HIGH { color: #ff8c00; font-weight: bold; }
+        .status-ELEVATED { color: #ffd700; }
         .status-IN_RANGE { color: #28a745; }
         .btn-download {
             background-color: #0056b3;
@@ -88,18 +90,19 @@
 <body>
     <div class="container">
         <h1>Environmental Toxin Analyzer</h1>
-        <p>Upload the <code>toxin-risk-dictionary.csv</code> and the Ayus Labs Toxin PDF to begin analysis.</p>
+        <p>This tool automatically loads the dictionary. Upload the Ayus Labs Toxin PDF to begin analysis.</p>
 
         <div class="file-upload-container">
-            <input type="file" id="dictionaryFile" accept=".csv">
-            <label for="dictionaryFile" class="upload-label">1. Upload Toxin Dictionary (CSV)</label>
-            <p id="dictionaryStatus">Status: Awaiting CSV upload.</p>
+            <p id="dictionaryStatus">Status: Loading Toxin Dictionary...</p>
             
+            <input type="file" id="dictionaryFile" accept=".csv" style="display: none;">
+            <label for="dictionaryFile" class="upload-label" style="display: none;">1. Upload Toxin Dictionary (CSV)</label>
+
             <input type="file" id="reportFile" accept=".pdf">
-            <label for="reportFile" class="upload-label">2. Upload Toxin Report (PDF)</label>
+            <label for="reportFile" class="upload-label">1. Upload Toxin Report (PDF)</label>
             <p id="reportStatus">Status: Awaiting PDF upload.</p>
             
-            <button id="analyzeBtn" class="upload-label" style="background-color: #28a745; display: none;">3. RUN TOXIN ANALYSIS</button>
+            <button id="analyzeBtn" class="upload-label" style="background-color: #28a745; display: none;">2. RUN TOXIN ANALYSIS</button>
         </div>
 
         <div id="results" style="display: none;">
@@ -139,50 +142,56 @@
 
         // --- Utility Functions ---
 
-        // Simple function to clean and normalize a string
         const cleanText = (text) => text ? String(text).replace(/[\r\n\s\t]+/g, ' ').trim() : '';
         
-        // Function to safely parse float from a string containing µg/l, ng/l, etc.
         const parseValue = (text) => {
             if (!text) return NaN;
-            let cleaned = text.replace(/[^0-9.,]/g, ''); // Remove all non-numeric and non-dot/comma chars
-            cleaned = cleaned.replace(',', '.'); // Replace comma decimal with dot decimal
+            let cleaned = text.replace(/[^0-9.,]/g, '');
+            cleaned = cleaned.replace(',', '.');
             return parseFloat(cleaned);
         };
         
-        // Function to normalize analyte names for matching
         const normalizeAnalyte = (name) => cleanText(name).toLowerCase().replace(/[\s\(\)\/&-]/g, '');
 
         // --- Dictionary & PDF Loading ---
 
         function loadDictionary() {
-            const file = document.getElementById('dictionaryFile').files[0];
-            if (!file) return;
+            // FIX: Fetch the CSV directly from the server path for Vercel deployment
+            fetch('toxin-risk-dictionary.csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to load dictionary. Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            dictionaryData = new Map();
+                            results.data.forEach(row => {
+                                const normalizedName = normalizeAnalyte(row.Analyte);
+                                if (normalizedName) {
+                                    row.Ref_Value = parseValue(row.Ref_Value);
+                                    row.Carcinogen = cleanText(row.Carcinogen);
+                                    row.Neurotoxin = cleanText(row.Neurotoxin);
+                                    dictionaryData.set(normalizedName, row);
+                                }
+                            });
 
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    // Convert the dictionary array into a map for fast lookup
-                    dictionaryData = new Map();
-                    results.data.forEach(row => {
-                        const normalizedName = normalizeAnalyte(row.Analyte);
-                        if (normalizedName) {
-                            // Ensure numeric fields are correctly parsed, and safe access
-                            row.Ref_Value = parseValue(row.Ref_Value);
-                            row.Carcinogen = cleanText(row.Carcinogen);
-                            row.Neurotoxin = cleanText(row.Neurotoxin);
-                            dictionaryData.set(normalizedName, row);
+                            document.getElementById('dictionaryStatus').textContent = `✅ Dictionary loaded with ${dictionaryData.size} analytes from server.`;
+                            checkReady();
+                        },
+                        error: function(error) {
+                            alert('Error parsing CSV dictionary: ' + error.message);
                         }
                     });
-
-                    document.getElementById('dictionaryStatus').textContent = `Status: Dictionary loaded with ${dictionaryData.size} analytes.`;
-                    checkReady();
-                },
-                error: function(error) {
-                    alert('Error parsing CSV dictionary: ' + error);
-                }
-            });
+                })
+                .catch(error => {
+                    console.error("Dictionary Fetch Error:", error);
+                    document.getElementById('dictionaryStatus').textContent = `❌ ERROR: Could not load dictionary. Ensure 'toxin-risk-dictionary.csv' is in the root.`;
+                });
         }
 
         async function loadReport() {
@@ -200,77 +209,55 @@
             }
         }
 
-        // --- PDF Toxin Data Extraction Logic ---
+        // --- PDF Toxin Data Extraction Logic (Simplified/Heuristic) ---
 
         async function extractToxinData(pdf) {
             const extractedAnalytes = [];
             const numPages = pdf.numPages;
 
+            // List of known analytes to guide the extraction heuristic
+            const toxinNames = ["Antimony", "Cobalt", "Titanium", "Cadmium", "Aluminium", "Mercury", "Zinc", "Arsenic", "Barium", "Lead", "Tetrachloromethane", "Benzene", "Xylene", "Toluene", "Aldrin", "Chlorothalonil", "PCB 153", "p-p-DDE", "Hexachlorobenzene", "Permethrin", "Dichloromethane", "Trichloroethene", "Tetrachloroethene"]; 
+
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
                 const textItems = textContent.items.map(item => item.str);
-                const fullText = textItems.join(' ');
                 
-                // Regex to find "Analyte: [Name] Reference: [Ref] Measurement: [Meas]" (from page 1 box)
-                // or general table rows: [Name] [Ref] [Unit] [Meas] [Comment]
-                
-                // Simple pattern for table extraction, looking for Analytes followed by values
-                // This is a simplified approach, a more robust library might be needed for perfect extraction
-                const regex = /([A-Z][a-z]+(?: [A-Z][a-z]+)?)\s+([\d.,]+)\s*(\S+\/\S+)\s+([\d.,]+)\s*(\S+)\s*(Traces|Within\s+range|Very\s+high|High)/gi;
-                let match;
-
-                while ((match = regex.exec(fullText)) !== null) {
-                    const analyteName = cleanText(match[1]);
-                    // Assuming the structure is: [Name] [Ref Value] [Unit] [Measurement Value] [Unit] [Comment]
-                    // The report structure is often cleaner: Parameter | Reference | Measurement | Comment
-                    // The simple regex above is too prone to errors. We will rely on proximity and known analytes.
+                // Iterate through known toxin names to find their values in the text items
+                toxinNames.forEach(name => {
+                    const nameIndex = textItems.findIndex(item => cleanText(item) === name);
                     
-                    // --- REVISED Extraction Logic (Scanning for known structure from Kroll_Nick_4524.pdf) ---
-                    // The tables follow a pattern: [Analyte Name] [Ref] [Unit] [Meas] [Unit] [Comment]
-                    // Let's use a simpler, more robust pattern to find name and its two key numbers in proximity.
-                    
-                    // Look for known analytes from the report followed by two numeric values (Ref and Meas)
-                    const toxinNames = ["Antimony", "Cobalt", "Titanium", "Cadmium", "Aluminium", "Mercury", "Zinc", "Arsenic", "Barium", "Lead", "Tetrachloromethane", "Benzene", "Xylene", "Toluene", "Aldrin", "Chlorothalonil", "PCB 153", "p-p-DDE"]; 
-                    
-                    toxinNames.forEach(name => {
-                        const nameIndex = textItems.findIndex(item => cleanText(item) === name);
+                    if (nameIndex !== -1) {
+                        let refValue, measurementValue;
                         
-                        if (nameIndex !== -1) {
-                            // Search for Ref Value, Unit, Measurement Value, and Comment after the name
-                            // This relies on the table columns being sequential and predictable
-                            let refValue, unit, measurementValue, comment;
-                            
-                            // Iterate through subsequent items
-                            for (let j = nameIndex + 1; j < textItems.length; j++) {
-                                const currentItem = cleanText(textItems[j]);
-                                
-                                if (!refValue && parseValue(currentItem)) {
-                                    refValue = parseValue(currentItem);
-                                } else if (refValue && !unit && currentItem.match(/(µg|ng)\/l/)) {
-                                    unit = currentItem;
-                                } else if (refValue && unit && !measurementValue && parseValue(currentItem) && parseValue(currentItem) !== refValue) {
-                                    measurementValue = parseValue(currentItem);
-                                } else if (refValue && unit && measurementValue && currentItem.match(/(µg|ng)\/l/)) {
-                                    // Found unit for measurement, ignore.
-                                } else if (refValue && unit && measurementValue && !comment && (currentItem.includes('range') || currentItem.includes('high') || currentItem.includes('Traces'))) {
-                                    comment = currentItem;
-                                    break; // Found all key pieces, stop search for this analyte
+                        // Search for Ref Value and Measurement Value after the name
+                        for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 10; j++) {
+                            const currentItem = cleanText(textItems[j]);
+                            const numericValue = parseValue(currentItem);
+
+                            if (!isNaN(numericValue) && numericValue > 0) {
+                                // First valid number after name is likely the Reference Value
+                                if (!refValue) {
+                                    refValue = numericValue;
+                                } 
+                                // Second valid number (and different from refValue) is likely Measurement Value
+                                else if (!measurementValue && numericValue !== refValue) {
+                                    measurementValue = numericValue;
+                                    break; // Found both critical numbers
                                 }
                             }
-                            
-                            if (refValue && measurementValue) {
-                                extractedAnalytes.push({
-                                    Analyte: name,
-                                    Ref_Value_Report: refValue,
-                                    Measurement: measurementValue,
-                                    Unit_Report: unit || 'N/A',
-                                    Comment_Report: comment || 'N/A'
-                                });
-                            }
                         }
-                    });
-                }
+                        
+                        // Heuristic success condition
+                        if (refValue && measurementValue) {
+                            extractedAnalytes.push({
+                                Analyte: name,
+                                Ref_Value_Report: refValue,
+                                Measurement: measurementValue,
+                            });
+                        }
+                    }
+                });
             }
             // Remove duplicates and return unique, successful extractions
             const uniqueAnalytes = Array.from(new Set(extractedAnalytes.map(a => a.Analyte)))
@@ -283,16 +270,12 @@
 
         function evaluateAnalytes() {
             analysisResults = [];
-            const riskTally = {
-                'Neurological': 0, 'Kidneys': 0, 'Cardiovascular': 0, 'Respiratory': 0, 
-                'Endocrine': 0, 'Liver': 0, 'Immune System': 0, 'Bones/Skeleton': 0,
-                'Hematopoietic': 0, 'Skin': 0, 'Central Nervous System': 0, 'Thyroid': 0
-            };
+            const riskTally = {};
             const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
             const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
 
             if (!reportData || !dictionaryData) {
-                alert('Please upload both the dictionary and the report.');
+                alert('Analysis failed. Ensure the dictionary is loaded and the report is parsed.');
                 return;
             }
 
@@ -300,12 +283,8 @@
                 const normalizedName = normalizeAnalyte(reportItem.Analyte);
                 const dictEntry = dictionaryData.get(normalizedName);
                 
-                if (!dictEntry) {
-                    analysisResults.push({
-                        Analyte: reportItem.Analyte, Status: 'DICTIONARY MISSING', 
-                        Measurement: reportItem.Measurement, Ref_Value_Report: reportItem.Ref_Value_Report, 
-                        ToxicityRatio: 'N/A', Key_Health_Effect: 'N/A', Primary_Source: 'N/A'
-                    });
+                if (!dictEntry || isNaN(dictEntry.Ref_Value)) {
+                    // Skip or report analytes missing from dictionary or with bad reference data
                     return;
                 }
 
@@ -314,7 +293,7 @@
                 const toxicityRatio = reference > 0 ? (measurement / reference) : 0;
                 let status = 'IN-RANGE';
                 
-                // Determine Status (using the report's thresholds as a guide)
+                // Determine Status based on Toxicity Ratio
                 if (toxicityRatio > 2.0) {
                     status = 'VERY_HIGH';
                 } else if (toxicityRatio > 1.1) {
@@ -323,13 +302,13 @@
                     status = 'ELEVATED';
                 }
 
-                // If flagged (HIGH or VERY HIGH), tally the risks
+                // If flagged, tally the risks
                 if (status === 'HIGH' || status === 'VERY_HIGH' || status === 'ELEVATED') {
                     // Tally Organ Systems
                     [dictEntry.Organ_System_1, dictEntry.Organ_System_2].forEach(system => {
                         const cleanSystem = cleanText(system);
-                        if (cleanSystem && riskTally[cleanSystem] !== undefined) {
-                            riskTally[cleanSystem]++;
+                        if (cleanSystem && cleanSystem !== '-') {
+                            riskTally[cleanSystem] = (riskTally[cleanSystem] || 0) + 1;
                         }
                     });
 
@@ -359,7 +338,6 @@
                     ToxicityRatio: toxicityRatio.toFixed(2) + 'x',
                     Key_Health_Effect: dictEntry.Key_Health_Effect || 'N/A',
                     Primary_Source: dictEntry.Primary_Source || 'N/A',
-                    // Pass through flags for PDF report
                     Carcinogen: dictEntry.Carcinogen,
                     Neurotoxin: dictEntry.Neurotoxin,
                     Organ_System_1: dictEntry.Organ_System_1,
@@ -377,10 +355,10 @@
 
         function displayAnalyteTable() {
             const tableBody = document.getElementById('analyteTable').getElementsByTagName('tbody')[0];
-            tableBody.innerHTML = ''; // Clear previous results
+            tableBody.innerHTML = ''; 
 
             analysisResults
-                .sort((a, b) => b.ToxicityRatio.localeCompare(a.ToxicityRatio)) // Sort by highest ratio first
+                .sort((a, b) => parseFloat(b.ToxicityRatio) - parseFloat(a.ToxicityRatio)) // Sort by highest ratio first
                 .forEach(result => {
                 const row = tableBody.insertRow();
                 const statusClass = `status-${result.Status.replace(/[\s-]/g, '_').toUpperCase()}`;
@@ -441,6 +419,7 @@
 
         function checkReady() {
             const analyzeBtn = document.getElementById('analyzeBtn');
+            // Check that the dictionary is loaded AND the report data has been extracted
             if (dictionaryData && reportData && reportData.length > 0) {
                 analyzeBtn.style.display = 'block';
             } else {
@@ -448,7 +427,7 @@
             }
         }
         
-        // --- PDF Generation Logic (Updated) ---
+        // --- PDF Generation Logic ---
 
         const executePdfDownload = () => {
              if (!analysisResults || analysisResults.length === 0) {
@@ -457,7 +436,6 @@
              }
              
              try {
-                // Initialize jspdf
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('p', 'pt', 'a4');
                 const margin = 40;
@@ -469,7 +447,7 @@
                 doc.text("Environmental Toxin Analysis Report", margin, finalY);
                 finalY += 30;
 
-                // Toxin Risk Summary Table Setup
+                // --- Summary Data Setup ---
                 const riskData = [];
                 const riskTally = {};
                 const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
@@ -488,7 +466,7 @@
                     else if (cleanText(r.Neurotoxin).toLowerCase().startsWith('possible')) neurotoxinCount.Possible++;
                 });
 
-                // Organ Burden Summary
+                // --- Organ Burden Summary Table ---
                 doc.setFontSize(14);
                 doc.setTextColor('#333');
                 doc.text("Organ System Burden Summary", margin, finalY);
@@ -517,7 +495,7 @@
                     finalY += 20;
                 }
                 
-                // Critical Risk Summary
+                // --- Critical Risk Summary Table ---
                 doc.setFontSize(14);
                 doc.text("Critical Toxicity Flags", margin, finalY);
                 finalY += 15;
@@ -540,7 +518,7 @@
                 finalY = doc.lastAutoTable.finalY + 20;
 
 
-                // Detailed Analyte Results Table
+                // --- Detailed Analyte Results Table ---
                 doc.setFontSize(18);
                 doc.text("Detailed Analyte Results", margin, finalY);
                 finalY += 15;
@@ -565,16 +543,17 @@
                     styles: { fontSize: 8 },
                     headStyles: { fillColor: '#8B0000', textColor: '#FFF' },
                     columnStyles: { 
-                        3: { cellWidth: 50 }, // Status column width
-                        4: { cellWidth: 40 }, // Ratio column width
+                        3: { cellWidth: 50 },
+                        4: { cellWidth: 40 },
                     },
                     didParseCell: function(data) {
                         if (data.section === 'body' && data.column.dataKey === 3) { // Status column
                             let statusText = data.cell.text.join('');
                             let textColor = '#333'; 
                             
-                            if (statusText.includes('VERY HIGH') || statusText.includes('HIGH')) { textColor = '#8B0000'; // Dark Red
-                            } else if (statusText.includes('ELEVATED')) { textColor = '#ff8c00'; // Orange
+                            if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Dark Red
+                            } else if (statusText.includes('HIGH')) { textColor = '#ff8c00'; // Orange
+                            } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Yellow
                             } else if (statusText.includes('IN RANGE')) { textColor = '#28a745'; // Green 
                             }
                             doc.setTextColor(textColor); 
@@ -593,12 +572,14 @@
         };
 
 
-        // --- Event Listeners ---
+        // --- Event Listeners and Initialization ---
         
-        document.getElementById('dictionaryFile').addEventListener('change', loadDictionary);
         document.getElementById('reportFile').addEventListener('change', loadReport);
         document.getElementById('analyzeBtn').addEventListener('click', evaluateAnalytes);
         document.getElementById('downloadPdfBtn').addEventListener('click', executePdfDownload);
+        
+        // THIS LINE IS THE FIX: Automatically load the dictionary when the page finishes loading
+        window.onload = loadDictionary; 
     </script>
 </body>
 </html>
