@@ -280,8 +280,9 @@
                 'Nervous System': [], 'Lungs': [], 'Joints': [], 'Metabolism': [], 'Gastrointestinal': [], 
                 'Muscles': [], 'Blood': [], 'Eyes': [], 'Reproductive': [], 'ENT': [] 
             };
-            const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
-            const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
+            // Updated to store ARRAYS of names, not just counts
+            const carcinogenCount = { 'Possible': [], 'Yes': [] };
+            const neurotoxinCount = { 'Possible': [], 'Yes': [] };
 
             if (!reportData || !dictionaryData) {
                 alert('Analysis failed. Ensure the dictionary is loaded and the report is parsed.');
@@ -324,20 +325,20 @@
                         }
                     });
 
-                    // Tally Carcinogen Risk
-                    const carcinogenStatus = cleanText(dictEntry.Carcinogen);
-                    if (carcinogenStatus.toLowerCase().startsWith('yes')) {
-                        carcinogenCount.Yes++;
-                    } else if (carcinogenStatus.toLowerCase().startsWith('possible')) {
-                        carcinogenCount.Possible++;
+                    // Tally and Collect names for Carcinogen Risk
+                    const carcinogenStatus = cleanText(dictEntry.Carcinogen).toLowerCase();
+                    if (carcinogenStatus.startsWith('yes')) {
+                        if (!carcinogenCount.Yes.includes(analyteName)) carcinogenCount.Yes.push(analyteName);
+                    } else if (carcinogenStatus.startsWith('possible')) {
+                        if (!carcinogenCount.Possible.includes(analyteName)) carcinogenCount.Possible.push(analyteName);
                     }
                     
-                    // Tally Neurotoxin Risk
-                    const neurotoxinStatus = cleanText(dictEntry.Neurotoxin);
-                    if (neurotoxinStatus.toLowerCase().startsWith('yes')) {
-                        neurotoxinCount.Yes++;
-                    } else if (neurotoxinStatus.toLowerCase().startsWith('possible')) {
-                        neurotoxinCount.Possible++;
+                    // Tally and Collect names for Neurotoxin Risk
+                    const neurotoxinStatus = cleanText(dictEntry.Neurotoxin).toLowerCase();
+                    if (neurotoxinStatus.startsWith('yes')) {
+                        if (!neurotoxinCount.Yes.includes(analyteName)) neurotoxinCount.Yes.push(analyteName);
+                    } else if (neurotoxinStatus.startsWith('possible')) {
+                        if (!neurotoxinCount.Possible.includes(analyteName)) neurotoxinCount.Possible.push(analyteName);
                     }
                 }
                 
@@ -363,7 +364,7 @@
             document.getElementById('results').style.display = 'block';
         }
 
-        // --- Display Functions (Updated to List Toxin Names) ---
+        // --- Display Functions (Updated to List Toxin Names for ALL Categories) ---
 
         function displayAnalyteTable() {
             const tableBody = document.getElementById('analyteTable').getElementsByTagName('tbody')[0];
@@ -407,22 +408,35 @@
                 summaryDiv.innerHTML += '<p>No toxins were flagged above the reference value (1.1x) to calculate organ burden.</p>';
             }
 
-            // 2. Critical Risk Summary (remains the same)
+            // 2. Critical Risk Summary (Updated to list names)
             let riskHtml = '<h3>Critical Toxicity Flags</h3><ul>';
             
-            const totalCarcinogens = carcinogenCount.Yes + carcinogenCount.Possible;
-            if (totalCarcinogens > 0) {
-                riskHtml += `<li><strong>Carcinogen Risk:</strong> ${carcinogenCount.Yes} Known Cancer-Link Toxins, ${carcinogenCount.Possible} Possible Cancer-Link Toxins.</li>`;
+            const yesCarcinogens = carcinogenCount.Yes;
+            const possibleCarcinogens = carcinogenCount.Possible;
+            const yesNeurotoxins = neurotoxinCount.Yes;
+            const possibleNeurotoxins = neurotoxinCount.Possible;
+            
+            const totalCriticalFlags = yesCarcinogens.length + possibleCarcinogens.length + yesNeurotoxins.length + possibleNeurotoxins.length;
+
+            if (yesCarcinogens.length > 0) {
+                riskHtml += `<li><strong>Known Carcinogens (${yesCarcinogens.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${yesCarcinogens.join(', ')})</span></li>`;
             }
             
-            const totalNeurotoxins = neurotoxinCount.Yes + neurotoxinCount.Possible;
-            if (totalNeurotoxins > 0) {
-                riskHtml += `<li><strong>Neurotoxin Risk:</strong> ${neurotoxinCount.Yes} Known Neurotoxins, ${neurotoxinCount.Possible} Possible Neurotoxins.</li>`;
+            if (possibleCarcinogens.length > 0) {
+                riskHtml += `<li><strong>Possible Carcinogens (${possibleCarcinogens.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${possibleCarcinogens.join(', ')})</span></li>`;
+            }
+            
+            if (yesNeurotoxins.length > 0) {
+                riskHtml += `<li><strong>Known Neurotoxins (${yesNeurotoxins.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${yesNeurotoxins.join(', ')})</span></li>`;
+            }
+            
+            if (possibleNeurotoxins.length > 0) {
+                riskHtml += `<li><strong>Possible Neurotoxins (${possibleNeurotoxins.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${possibleNeurotoxins.join(', ')})</span></li>`;
             }
 
-            if (totalCarcinogens === 0 && totalNeurotoxins === 0 && sortedSystems.length > 0) {
+            if (totalCriticalFlags === 0 && sortedSystems.length > 0) {
                 riskHtml += '<li>No highly critical (Carcinogen/Neurotoxin) toxins were flagged.</li>';
-            } else if (sortedSystems.length === 0) {
+            } else if (totalCriticalFlags === 0 && sortedSystems.length === 0) {
                 riskHtml += '<li>No toxins were flagged above the reference value.</li>';
             }
             riskHtml += '</ul>';
@@ -463,12 +477,13 @@
 
                 // --- Summary Data Setup (Recalculate Tally with Names) ---
                 const riskData = [];
-                const riskTally = {}; // Object to collect names
-                const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
-                const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
+                const riskTally = {}; // Object to collect names for organ systems
+                const criticalTally = { 'carc_yes': [], 'carc_possible': [], 'neuro_yes': [], 'neuro_possible': [] }; // Object to collect critical names
 
                 analysisResults.filter(r => r.Status !== 'IN-RANGE').forEach(r => {
                     const analyteName = r.Analyte;
+                    
+                    // 1. Organ System Tally
                     [r.Organ_System_1, r.Organ_System_2].forEach(system => {
                         const cleanSystem = cleanText(system);
                         if (cleanSystem && cleanSystem !== '-') {
@@ -478,10 +493,22 @@
                             }
                         }
                     });
-                    if (cleanText(r.Carcinogen).toLowerCase().startsWith('yes')) carcinogenCount.Yes++;
-                    else if (cleanText(r.Carcinogen).toLowerCase().startsWith('possible')) carcinogenCount.Possible++;
-                    if (cleanText(r.Neurotoxin).toLowerCase().startsWith('yes')) neurotoxinCount.Yes++;
-                    else if (cleanText(r.Neurotoxin).toLowerCase().startsWith('possible')) neurotoxinCount.Possible++;
+
+                    // 2. Critical Tally
+                    const carcStatus = cleanText(r.Carcinogen).toLowerCase();
+                    const neuroStatus = cleanText(r.Neurotoxin).toLowerCase();
+
+                    if (carcStatus.startsWith('yes') && !criticalTally.carc_yes.includes(analyteName)) {
+                        criticalTally.carc_yes.push(analyteName);
+                    } else if (carcStatus.startsWith('possible') && !criticalTally.carc_possible.includes(analyteName)) {
+                        criticalTally.carc_possible.push(analyteName);
+                    }
+                    
+                    if (neuroStatus.startsWith('yes') && !criticalTally.neuro_yes.includes(analyteName)) {
+                        criticalTally.neuro_yes.push(analyteName);
+                    } else if (neuroStatus.startsWith('possible') && !criticalTally.neuro_possible.includes(analyteName)) {
+                        criticalTally.neuro_possible.push(analyteName);
+                    }
                 });
 
 
@@ -519,27 +546,53 @@
                     finalY += 20;
                 }
                 
-                // --- Critical Risk Summary Table ---
+                // --- Critical Risk Summary Table (Updated to show names) ---
                 doc.setFontSize(14);
                 doc.text("Critical Toxicity Flags", margin, finalY);
                 finalY += 15;
                 
-                const criticalData = [
-                    ['Carcinogen Risk (Known)', carcinogenCount.Yes > 0 ? `${carcinogenCount.Yes} Toxins` : 'None'],
-                    ['Carcinogen Risk (Possible)', carcinogenCount.Possible > 0 ? `${carcinogenCount.Possible} Toxins` : 'None'],
-                    ['Neurotoxin Risk (Known)', neurotoxinCount.Yes > 0 ? `${neurotoxinCount.Yes} Toxins` : 'None'],
-                    ['Neurotoxin Risk (Possible)', neurotoxinCount.Possible > 0 ? `${neurotoxinCount.Possible} Toxins` : 'None'],
-                ];
+                const criticalData = [];
+                
+                if (criticalTally.carc_yes.length > 0) {
+                    criticalData.push(
+                        ['Known Carcinogen Risk', `${criticalTally.carc_yes.length} Toxins`],
+                        [{ content: `Toxins: ${criticalTally.carc_yes.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#8B0000' } }]
+                    );
+                }
+                if (criticalTally.carc_possible.length > 0) {
+                    criticalData.push(
+                        ['Possible Carcinogen Risk', `${criticalTally.carc_possible.length} Toxins`],
+                        [{ content: `Toxins: ${criticalTally.carc_possible.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#A52A2A' } }]
+                    );
+                }
+                if (criticalTally.neuro_yes.length > 0) {
+                    criticalData.push(
+                        ['Known Neurotoxin Risk', `${criticalTally.neuro_yes.length} Toxins`],
+                        [{ content: `Toxins: ${criticalTally.neuro_yes.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#8B0000' } }]
+                    );
+                }
+                if (criticalTally.neuro_possible.length > 0) {
+                    criticalData.push(
+                        ['Possible Neurotoxin Risk', `${criticalTally.neuro_possible.length} Toxins`],
+                        [{ content: `Toxins: ${criticalTally.neuro_possible.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#A52A2A' } }]
+                    );
+                }
 
-                doc.autoTable({
-                    startY: finalY + 5,
-                    head: [['Risk Factor', 'Toxin Count']],
-                    body: criticalData,
-                    theme: 'grid',
-                    headStyles: { fillColor: '#F0E6E6', textColor: '#555' },
-                    columnStyles: { 1: { fontStyle: 'bold', halign: 'center' } }
-                });
-                finalY = doc.lastAutoTable.finalY + 20;
+                if (criticalData.length > 0) {
+                    doc.autoTable({
+                        startY: finalY + 5,
+                        head: [['Risk Factor', 'Toxin Count']],
+                        body: criticalData,
+                        theme: 'grid',
+                        headStyles: { fillColor: '#F0E6E6', textColor: '#555' },
+                        columnStyles: { 1: { fontStyle: 'bold', halign: 'center' } }
+                    });
+                    finalY = doc.lastAutoTable.finalY + 20;
+                } else {
+                    // Placeholder if no critical flags exist
+                    doc.text("No critical (Carcinogen/Neurotoxin) toxins were flagged above 1.1x the reference value.", margin, finalY + 5);
+                    finalY += 20;
+                }
 
 
                 // --- Detailed Analyte Results Table ---
