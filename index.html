@@ -68,10 +68,16 @@
         th {
             background-color: #f2f2f2;
         }
-        .status-VERY_HIGH { color: #8b0000; font-weight: bold; }
+        /* Color classes for web table status */
+        .status-VERY_HIGH { color: #8B0000; font-weight: bold; }
         .status-HIGH { color: #ff8c00; font-weight: bold; }
         .status-ELEVATED { color: #ffd700; }
         .status-IN_RANGE { color: #28a745; }
+        /* Color classes for summary toxin names */
+        .toxin-red { color: #8B0000; }
+        .toxin-orange { color: #ff8c00; }
+        .toxin-green { color: #28a745; }
+        
         .btn-download {
             background-color: #0056b3;
             color: white;
@@ -148,13 +154,11 @@
             return parseFloat(cleaned);
         };
         
-        // This function cleans the analyte name for reliable map key and search matching.
         const normalizeAnalyte = (name) => cleanText(name).toLowerCase().replace(/[\s\(\)\/&-]/g, '');
 
         // --- Dictionary & PDF Loading ---
 
         function loadDictionary() {
-            // FIX: Fetch the CSV directly from the server path for Vercel deployment
             fetch('toxin-risk-dictionary.csv')
                 .then(response => {
                     if (!response.ok) {
@@ -177,7 +181,6 @@
                                     dictionaryData.set(normalizedName, row);
                                 }
                             });
-                            // UI CLEANUP: Only show load status in the instruction section
                             document.getElementById('dictionaryStatus').textContent = `Dictionary loaded (${dictionaryData.size} analytes).`;
                             document.getElementById('reportStatus').textContent = `Status: Ready.`;
                             checkReady();
@@ -272,7 +275,6 @@
 
         function evaluateAnalytes() {
             analysisResults = [];
-            // Initialize riskTally to store ARRAYS of analyte names for each system
             const riskTally = {
                 'Neurological': [], 'Kidneys': [], 'Cardiovascular': [], 'Respiratory': [], 
                 'Endocrine': [], 'Liver': [], 'Immune System': [], 'Bones/Skeleton': [],
@@ -280,7 +282,6 @@
                 'Nervous System': [], 'Lungs': [], 'Joints': [], 'Metabolism': [], 'Gastrointestinal': [], 
                 'Muscles': [], 'Blood': [], 'Eyes': [], 'Reproductive': [], 'ENT': [] 
             };
-            // Updated to store ARRAYS of names, not just counts
             const carcinogenCount = { 'Possible': [], 'Yes': [] };
             const neurotoxinCount = { 'Possible': [], 'Yes': [] };
 
@@ -318,7 +319,6 @@
                     [dictEntry.Organ_System_1, dictEntry.Organ_System_2].forEach(system => {
                         const cleanSystem = cleanText(system);
                         if (cleanSystem && cleanSystem !== '-' && riskTally[cleanSystem] !== undefined) {
-                            // Only push the name if it's not already listed for this system
                             if (!riskTally[cleanSystem].includes(analyteName)) {
                                 riskTally[cleanSystem].push(analyteName);
                             }
@@ -379,6 +379,7 @@
                 row.insertCell().textContent = result.Analyte;
                 row.insertCell().textContent = result.Measurement;
                 row.insertCell().textContent = result.Ref_Value;
+                // Applies the specific color class for the status text in the main table
                 row.insertCell().innerHTML = `<span class="${statusClass}">${result.Status.replace(/_/g, ' ')}</span>`;
                 row.insertCell().textContent = result.ToxicityRatio;
                 row.insertCell().textContent = result.Key_Health_Effect;
@@ -391,7 +392,6 @@
             summaryDiv.innerHTML = '';
             
             // 1. Organ Burden Summary
-            // Convert riskTally object to an array of [system, nameArray] pairs and filter/sort
             const sortedSystems = Object.entries(riskTally)
                 .filter(([, nameArray]) => nameArray.length > 0)
                 .sort(([, a], [, b]) => b.length - a.length); // Sort by count (length of array)
@@ -399,7 +399,7 @@
             if (sortedSystems.length > 0) {
                 let systemHtml = '<h3>Organ System Burden (Tally of Flagged Toxins)</h3><ul>';
                 sortedSystems.forEach(([system, nameArray]) => {
-                    const toxinList = nameArray.join(', ');
+                    const toxinList = nameArray.map(name => `<span class="toxin-red">${name}</span>`).join(', '); // NEW: Color-coded names
                     systemHtml += `<li><strong>${system}:</strong> ${nameArray.length} Toxins Flagged: <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
                 });
                 systemHtml += '</ul>';
@@ -408,7 +408,7 @@
                 summaryDiv.innerHTML += '<p>No toxins were flagged above the reference value (1.1x) to calculate organ burden.</p>';
             }
 
-            // 2. Critical Risk Summary (Updated to list names)
+            // 2. Critical Risk Summary
             let riskHtml = '<h3>Critical Toxicity Flags</h3><ul>';
             
             const yesCarcinogens = carcinogenCount.Yes;
@@ -419,19 +419,23 @@
             const totalCriticalFlags = yesCarcinogens.length + possibleCarcinogens.length + yesNeurotoxins.length + possibleNeurotoxins.length;
 
             if (yesCarcinogens.length > 0) {
-                riskHtml += `<li><strong>Known Carcinogens (${yesCarcinogens.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${yesCarcinogens.join(', ')})</span></li>`;
+                const toxinList = yesCarcinogens.map(name => `<span class="toxin-red">${name}</span>`).join(', ');
+                riskHtml += `<li><strong class="toxin-red">Known Carcinogens</strong> (${yesCarcinogens.length}): <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
             }
             
             if (possibleCarcinogens.length > 0) {
-                riskHtml += `<li><strong>Possible Carcinogens (${possibleCarcinogens.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${possibleCarcinogens.join(', ')})</span></li>`;
+                const toxinList = possibleCarcinogens.map(name => `<span class="toxin-orange">${name}</span>`).join(', ');
+                riskHtml += `<li><strong class="toxin-orange">Possible Carcinogens</strong> (${possibleCarcinogens.length}): <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
             }
             
             if (yesNeurotoxins.length > 0) {
-                riskHtml += `<li><strong>Known Neurotoxins (${yesNeurotoxins.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${yesNeurotoxins.join(', ')})</span></li>`;
+                const toxinList = yesNeurotoxins.map(name => `<span class="toxin-red">${name}</span>`).join(', ');
+                riskHtml += `<li><strong class="toxin-red">Known Neurotoxins</strong> (${yesNeurotoxins.length}): <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
             }
             
             if (possibleNeurotoxins.length > 0) {
-                riskHtml += `<li><strong>Possible Neurotoxins (${possibleNeurotoxins.length}):</strong> <span style="font-size: 0.9em; font-style: italic;">(${possibleNeurotoxins.join(', ')})</span></li>`;
+                const toxinList = possibleNeurotoxins.map(name => `<span class="toxin-orange">${name}</span>`).join(', ');
+                riskHtml += `<li><strong class="toxin-orange">Possible Neurotoxins</strong> (${possibleNeurotoxins.length}): <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
             }
 
             if (totalCriticalFlags === 0 && sortedSystems.length > 0) {
@@ -447,7 +451,6 @@
 
         function checkReady() {
             const analyzeBtn = document.getElementById('analyzeBtn');
-            // Check that the dictionary is loaded AND the report data has been extracted
             if (dictionaryData && reportData && reportData.length > 0) {
                 analyzeBtn.style.display = 'block';
             } else {
@@ -455,7 +458,7 @@
             }
         }
         
-        // --- PDF Generation Logic (Updated to show Toxin Names) ---
+        // --- PDF Generation Logic (Updated for Status Color and Toxin Name Color) ---
 
         const executePdfDownload = () => {
              if (!analysisResults || analysisResults.length === 0) {
@@ -477,8 +480,8 @@
 
                 // --- Summary Data Setup (Recalculate Tally with Names) ---
                 const riskData = [];
-                const riskTally = {}; // Object to collect names for organ systems
-                const criticalTally = { 'carc_yes': [], 'carc_possible': [], 'neuro_yes': [], 'neuro_possible': [] }; // Object to collect critical names
+                const riskTally = {}; 
+                const criticalTally = { 'carc_yes': [], 'carc_possible': [], 'neuro_yes': [], 'neuro_possible': [] }; 
 
                 analysisResults.filter(r => r.Status !== 'IN-RANGE').forEach(r => {
                     const analyteName = r.Analyte;
@@ -524,11 +527,11 @@
                     
                 if (sortedSystems.length > 0) {
                     sortedSystems.forEach(([system, nameArray]) => {
-                        // Toxin list split across two rows for better PDF formatting
                         const toxinList = nameArray.join(', ');
                         riskData.push(
                             [system, `${nameArray.length} Toxins Flagged`],
-                            [{ content: `Toxins: ${toxinList}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#777' } }]
+                            // PDF text coloring is done via didParseCell, but simple text color is set here
+                            [{ content: `Toxins: ${toxinList}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#8B0000' } }] 
                         );
                     });
                     
@@ -562,7 +565,7 @@
                 if (criticalTally.carc_possible.length > 0) {
                     criticalData.push(
                         ['Possible Carcinogen Risk', `${criticalTally.carc_possible.length} Toxins`],
-                        [{ content: `Toxins: ${criticalTally.carc_possible.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#A52A2A' } }]
+                        [{ content: `Toxins: ${criticalTally.carc_possible.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#ff8c00' } }]
                     );
                 }
                 if (criticalTally.neuro_yes.length > 0) {
@@ -574,7 +577,7 @@
                 if (criticalTally.neuro_possible.length > 0) {
                     criticalData.push(
                         ['Possible Neurotoxin Risk', `${criticalTally.neuro_possible.length} Toxins`],
-                        [{ content: `Toxins: ${criticalTally.neuro_possible.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#A52A2A' } }]
+                        [{ content: `Toxins: ${criticalTally.neuro_possible.join(', ')}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#ff8c00' } }]
                     );
                 }
 
@@ -589,7 +592,6 @@
                     });
                     finalY = doc.lastAutoTable.finalY + 20;
                 } else {
-                    // Placeholder if no critical flags exist
                     doc.text("No critical (Carcinogen/Neurotoxin) toxins were flagged above 1.1x the reference value.", margin, finalY + 5);
                     finalY += 20;
                 }
@@ -628,9 +630,9 @@
                             let statusText = data.cell.text.join('');
                             let textColor = '#333'; 
                             
-                            if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Dark Red
+                            if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Deep Red
                             } else if (statusText.includes('HIGH')) { textColor = '#ff8c00'; // Orange
-                            } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Yellow
+                            } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Gold
                             } else if (statusText.includes('IN RANGE')) { textColor = '#28a745'; // Green 
                             }
                             doc.setTextColor(textColor); 
