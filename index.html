@@ -227,13 +227,11 @@
                 normalizedToxinMap.set(normalizeAnalyte(entry.Analyte), entry.Analyte);
             });
             
-            // Iterate page by page, which is more reliable for complex table layouts
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
                 const textItems = textContent.items.map(item => ({ str: cleanText(item.str), transform: item.transform, width: item.width }));
                 
-                // Identify all potential analyte names on this page
                 textItems.forEach((item, nameIndex) => {
                     const normalizedText = normalizeAnalyte(item.str);
                     
@@ -242,17 +240,15 @@
                         
                         let candidates = [];
                         
-                        // Search for ALL numeric candidates in the 30 subsequent items
                         for (let j = nameIndex + 1; j < textItems.length && j < nameIndex + 30; j++) {
                             const numericValue = parseValue(textItems[j].str);
 
                             if (!isNaN(numericValue) && numericValue > 0) {
                                 candidates.push({ value: numericValue, index: j });
                             }
-                            if (candidates.length >= 2) break; // Optimization: stop after two candidates found
+                            if (candidates.length >= 2) break;
                         }
                         
-                        // Select the first two unique candidates as Reference and Measurement
                         if (candidates.length >= 2) {
                             extractedAnalytes.push({
                                 Analyte: originalName,
@@ -264,7 +260,6 @@
                 });
             }
             
-            // Filter the final list to keep only unique analytes
             const uniqueAnalytes = Array.from(new Set(extractedAnalytes.map(a => a.Analyte)))
                                         .map(name => extractedAnalytes.find(a => a.Analyte === name));
             return uniqueAnalytes;
@@ -311,11 +306,9 @@
                     status = 'ELEVATED';
                 }
 
-                // If flagged, collect the risks
                 if (status === 'HIGH' || status === 'VERY_HIGH' || status === 'ELEVATED') {
                     const analyteName = dictEntry.Analyte;
                     
-                    // Collect Analyte Names for Organ Systems
                     [dictEntry.Organ_System_1, dictEntry.Organ_System_2].forEach(system => {
                         const cleanSystem = cleanText(system);
                         if (cleanSystem && cleanSystem !== '-' && riskTally[cleanSystem] !== undefined) {
@@ -325,7 +318,6 @@
                         }
                     });
 
-                    // Tally and Collect names for Carcinogen Risk
                     const carcinogenStatus = cleanText(dictEntry.Carcinogen).toLowerCase();
                     if (carcinogenStatus.startsWith('yes')) {
                         if (!carcinogenCount.Yes.includes(analyteName)) carcinogenCount.Yes.push(analyteName);
@@ -333,7 +325,6 @@
                         if (!carcinogenCount.Possible.includes(analyteName)) carcinogenCount.Possible.push(analyteName);
                     }
                     
-                    // Tally and Collect names for Neurotoxin Risk
                     const neurotoxinStatus = cleanText(dictEntry.Neurotoxin).toLowerCase();
                     if (neurotoxinStatus.startsWith('yes')) {
                         if (!neurotoxinCount.Yes.includes(analyteName)) neurotoxinCount.Yes.push(analyteName);
@@ -342,7 +333,6 @@
                     }
                 }
                 
-                // Store result
                 analysisResults.push({
                     Analyte: dictEntry.Analyte,
                     Measurement: measurement + ' ' + dictEntry.Unit,
@@ -358,20 +348,19 @@
                 });
             });
 
-            // Display results
             displayAnalyteTable();
             displayRiskSummary(riskTally, carcinogenCount, neurotoxinCount);
             document.getElementById('results').style.display = 'block';
         }
 
-        // --- Display Functions (Updated to List Toxin Names for ALL Categories) ---
+        // --- Display Functions (Web UI) ---
 
         function displayAnalyteTable() {
             const tableBody = document.getElementById('analyteTable').getElementsByTagName('tbody')[0];
             tableBody.innerHTML = ''; 
 
             analysisResults
-                .sort((a, b) => parseFloat(b.ToxicityRatio) - parseFloat(a.ToxicityRatio)) // Sort by highest ratio first
+                .sort((a, b) => parseFloat(b.ToxicityRatio) - parseFloat(a.ToxicityRatio))
                 .forEach(result => {
                 const row = tableBody.insertRow();
                 const statusClass = `status-${result.Status.replace(/[\s-]/g, '_').toUpperCase()}`;
@@ -379,7 +368,6 @@
                 row.insertCell().textContent = result.Analyte;
                 row.insertCell().textContent = result.Measurement;
                 row.insertCell().textContent = result.Ref_Value;
-                // Applies the specific color class for the status text in the main table
                 row.insertCell().innerHTML = `<span class="${statusClass}">${result.Status.replace(/_/g, ' ')}</span>`;
                 row.insertCell().textContent = result.ToxicityRatio;
                 row.insertCell().textContent = result.Key_Health_Effect;
@@ -394,12 +382,13 @@
             // 1. Organ Burden Summary
             const sortedSystems = Object.entries(riskTally)
                 .filter(([, nameArray]) => nameArray.length > 0)
-                .sort(([, a], [, b]) => b.length - a.length); // Sort by count (length of array)
+                .sort(([, a], [, b]) => b.length - a.length);
 
             if (sortedSystems.length > 0) {
                 let systemHtml = '<h3>Organ System Burden (Tally of Flagged Toxins)</h3><ul>';
                 sortedSystems.forEach(([system, nameArray]) => {
-                    const toxinList = nameArray.map(name => `<span class="toxin-red">${name}</span>`).join(', '); // NEW: Color-coded names
+                    // Toxin names colored red for visual impact
+                    const toxinList = nameArray.map(name => `<span class="toxin-red">${name}</span>`).join(', ');
                     systemHtml += `<li><strong>${system}:</strong> ${nameArray.length} Toxins Flagged: <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
                 });
                 systemHtml += '</ul>';
@@ -458,7 +447,7 @@
             }
         }
         
-        // --- PDF Generation Logic (Updated for Status Color and Toxin Name Color) ---
+        // --- PDF Generation Logic ---
 
         const executePdfDownload = () => {
              if (!analysisResults || analysisResults.length === 0) {
@@ -530,7 +519,7 @@
                         const toxinList = nameArray.join(', ');
                         riskData.push(
                             [system, `${nameArray.length} Toxins Flagged`],
-                            // PDF text coloring is done via didParseCell, but simple text color is set here
+                            // Toxin names color-coded red in PDF
                             [{ content: `Toxins: ${toxinList}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#8B0000' } }] 
                         );
                     });
@@ -549,7 +538,7 @@
                     finalY += 20;
                 }
                 
-                // --- Critical Risk Summary Table (Updated to show names) ---
+                // --- Critical Risk Summary Table ---
                 doc.setFontSize(14);
                 doc.text("Critical Toxicity Flags", margin, finalY);
                 finalY += 15;
@@ -597,7 +586,7 @@
                 }
 
 
-                // --- Detailed Analyte Results Table ---
+                // --- Detailed Analyte Results Table (Status Color Fix Implemented Here) ---
                 doc.setFontSize(18);
                 doc.text("Detailed Analyte Results", margin, finalY);
                 finalY += 15;
@@ -627,12 +616,13 @@
                     },
                     didParseCell: function(data) {
                         if (data.section === 'body' && data.column.dataKey === 3) { // Status column
-                            let statusText = data.cell.text.join('');
+                            let statusText = data.cell.text.join('').toUpperCase(); // Ensure uppercase for reliable check
                             let textColor = '#333'; 
                             
+                            // *** FIX IMPLEMENTED HERE ***
                             if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Deep Red
                             } else if (statusText.includes('HIGH')) { textColor = '#ff8c00'; // Orange
-                            } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Gold
+                            } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Gold/Yellow
                             } else if (statusText.includes('IN RANGE')) { textColor = '#28a745'; // Green 
                             }
                             doc.setTextColor(textColor); 
@@ -657,7 +647,6 @@
         document.getElementById('analyzeBtn').addEventListener('click', evaluateAnalytes);
         document.getElementById('downloadPdfBtn').addEventListener('click', executePdfDownload);
         
-        // THIS LINE IS THE FIX: Automatically load the dictionary when the page finishes loading
         window.onload = loadDictionary; 
     </script>
 </body>
