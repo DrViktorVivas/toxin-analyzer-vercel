@@ -387,7 +387,6 @@
             if (sortedSystems.length > 0) {
                 let systemHtml = '<h3>Organ System Burden (Tally of Flagged Toxins)</h3><ul>';
                 sortedSystems.forEach(([system, nameArray]) => {
-                    // Toxin names colored red for visual impact
                     const toxinList = nameArray.map(name => `<span class="toxin-red">${name}</span>`).join(', ');
                     systemHtml += `<li><strong>${system}:</strong> ${nameArray.length} Toxins Flagged: <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
                 });
@@ -519,7 +518,6 @@
                         const toxinList = nameArray.join(', ');
                         riskData.push(
                             [system, `${nameArray.length} Toxins Flagged`],
-                            // Toxin names color-coded red in PDF
                             [{ content: `Toxins: ${toxinList}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#8B0000' } }] 
                         );
                     });
@@ -616,16 +614,17 @@
                     },
                     didParseCell: function(data) {
                         if (data.section === 'body' && data.column.dataKey === 3) { // Status column
-                            let statusText = data.cell.text.join('').toUpperCase(); // Ensure uppercase for reliable check
+                            let statusText = data.cell.text.join('').toUpperCase();
                             let textColor = '#333'; 
                             
-                            // *** FIX IMPLEMENTED HERE ***
+                            // *** FIX IMPLEMENTED HERE: Assign color to cell style for jspdf-autotable ***
                             if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Deep Red
                             } else if (statusText.includes('HIGH')) { textColor = '#ff8c00'; // Orange
                             } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Gold/Yellow
                             } else if (statusText.includes('IN RANGE')) { textColor = '#28a745'; // Green 
                             }
-                            doc.setTextColor(textColor); 
+                            // This ensures the color is applied correctly by the library
+                            data.cell.styles.textColor = textColor;
                         }
                     },
                     didDrawPage: function(data) {
