@@ -154,6 +154,7 @@
         // --- Dictionary & PDF Loading ---
 
         function loadDictionary() {
+            // FIX: Fetch the CSV directly from the server path for Vercel deployment
             fetch('toxin-risk-dictionary.csv')
                 .then(response => {
                     if (!response.ok) {
@@ -267,11 +268,18 @@
         }
 
 
-        // --- Core Toxin Risk Analysis Logic ---
+        // --- Core Toxin Risk Analysis Logic (Updated to Collect Toxin Names) ---
 
         function evaluateAnalytes() {
             analysisResults = [];
-            const riskTally = {};
+            // Initialize riskTally to store ARRAYS of analyte names for each system
+            const riskTally = {
+                'Neurological': [], 'Kidneys': [], 'Cardiovascular': [], 'Respiratory': [], 
+                'Endocrine': [], 'Liver': [], 'Immune System': [], 'Bones/Skeleton': [],
+                'Hematopoietic': [], 'Skin': [], 'Central Nervous System': [], 'Thyroid': [],
+                'Nervous System': [], 'Lungs': [], 'Joints': [], 'Metabolism': [], 'Gastrointestinal': [], 
+                'Muscles': [], 'Blood': [], 'Eyes': [], 'Reproductive': [], 'ENT': [] 
+            };
             const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
             const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
 
@@ -285,7 +293,6 @@
                 const dictEntry = dictionaryData.get(normalizedName);
                 
                 if (!dictEntry || isNaN(dictEntry.Ref_Value)) {
-                    // Skip or report analytes missing from dictionary or with bad reference data
                     return;
                 }
 
@@ -294,7 +301,6 @@
                 const toxicityRatio = reference > 0 ? (measurement / reference) : 0;
                 let status = 'IN-RANGE';
                 
-                // Determine Status based on Toxicity Ratio
                 if (toxicityRatio > 2.0) {
                     status = 'VERY_HIGH';
                 } else if (toxicityRatio > 1.1) {
@@ -303,13 +309,18 @@
                     status = 'ELEVATED';
                 }
 
-                // If flagged, tally the risks
+                // If flagged, collect the risks
                 if (status === 'HIGH' || status === 'VERY_HIGH' || status === 'ELEVATED') {
-                    // Tally Organ Systems
+                    const analyteName = dictEntry.Analyte;
+                    
+                    // Collect Analyte Names for Organ Systems
                     [dictEntry.Organ_System_1, dictEntry.Organ_System_2].forEach(system => {
                         const cleanSystem = cleanText(system);
-                        if (cleanSystem && cleanSystem !== '-') {
-                            riskTally[cleanSystem] = (riskTally[cleanSystem] || 0) + 1;
+                        if (cleanSystem && cleanSystem !== '-' && riskTally[cleanSystem] !== undefined) {
+                            // Only push the name if it's not already listed for this system
+                            if (!riskTally[cleanSystem].includes(analyteName)) {
+                                riskTally[cleanSystem].push(analyteName);
+                            }
                         }
                     });
 
@@ -352,7 +363,7 @@
             document.getElementById('results').style.display = 'block';
         }
 
-        // --- Display Functions ---
+        // --- Display Functions (Updated to List Toxin Names) ---
 
         function displayAnalyteTable() {
             const tableBody = document.getElementById('analyteTable').getElementsByTagName('tbody')[0];
@@ -379,14 +390,16 @@
             summaryDiv.innerHTML = '';
             
             // 1. Organ Burden Summary
+            // Convert riskTally object to an array of [system, nameArray] pairs and filter/sort
             const sortedSystems = Object.entries(riskTally)
-                .filter(([, count]) => count > 0)
-                .sort(([, a], [, b]) => b - a);
+                .filter(([, nameArray]) => nameArray.length > 0)
+                .sort(([, a], [, b]) => b.length - a.length); // Sort by count (length of array)
 
             if (sortedSystems.length > 0) {
                 let systemHtml = '<h3>Organ System Burden (Tally of Flagged Toxins)</h3><ul>';
-                sortedSystems.forEach(([system, count]) => {
-                    systemHtml += `<li><strong>${system}:</strong> ${count} Toxins Flagged</li>`;
+                sortedSystems.forEach(([system, nameArray]) => {
+                    const toxinList = nameArray.join(', ');
+                    systemHtml += `<li><strong>${system}:</strong> ${nameArray.length} Toxins Flagged: <span style="font-size: 0.9em; font-style: italic;">(${toxinList})</span></li>`;
                 });
                 systemHtml += '</ul>';
                 summaryDiv.innerHTML += systemHtml;
@@ -394,7 +407,7 @@
                 summaryDiv.innerHTML += '<p>No toxins were flagged above the reference value (1.1x) to calculate organ burden.</p>';
             }
 
-            // 2. Critical Risk Summary
+            // 2. Critical Risk Summary (remains the same)
             let riskHtml = '<h3>Critical Toxicity Flags</h3><ul>';
             
             const totalCarcinogens = carcinogenCount.Yes + carcinogenCount.Possible;
@@ -428,7 +441,7 @@
             }
         }
         
-        // --- PDF Generation Logic ---
+        // --- PDF Generation Logic (Updated to show Toxin Names) ---
 
         const executePdfDownload = () => {
              if (!analysisResults || analysisResults.length === 0) {
@@ -448,17 +461,21 @@
                 doc.text("Environmental Toxin Analysis Report", margin, finalY);
                 finalY += 30;
 
-                // --- Summary Data Setup ---
+                // --- Summary Data Setup (Recalculate Tally with Names) ---
                 const riskData = [];
-                const riskTally = {};
+                const riskTally = {}; // Object to collect names
                 const carcinogenCount = { 'Possible': 0, 'Yes': 0 };
                 const neurotoxinCount = { 'Possible': 0, 'Yes': 0 };
 
                 analysisResults.filter(r => r.Status !== 'IN-RANGE').forEach(r => {
+                    const analyteName = r.Analyte;
                     [r.Organ_System_1, r.Organ_System_2].forEach(system => {
                         const cleanSystem = cleanText(system);
                         if (cleanSystem && cleanSystem !== '-') {
-                            riskTally[cleanSystem] = (riskTally[cleanSystem] || 0) + 1;
+                            if (!riskTally[cleanSystem]) riskTally[cleanSystem] = [];
+                            if (!riskTally[cleanSystem].includes(analyteName)) {
+                                riskTally[cleanSystem].push(analyteName);
+                            }
                         }
                     });
                     if (cleanText(r.Carcinogen).toLowerCase().startsWith('yes')) carcinogenCount.Yes++;
@@ -467,6 +484,7 @@
                     else if (cleanText(r.Neurotoxin).toLowerCase().startsWith('possible')) neurotoxinCount.Possible++;
                 });
 
+
                 // --- Organ Burden Summary Table ---
                 doc.setFontSize(14);
                 doc.setTextColor('#333');
@@ -474,12 +492,17 @@
                 finalY += 15;
                 
                 const sortedSystems = Object.entries(riskTally)
-                    .filter(([, count]) => count > 0)
-                    .sort(([, a], [, b]) => b - a);
+                    .filter(([, nameArray]) => nameArray.length > 0)
+                    .sort(([, a], [, b]) => b.length - a.length);
                     
                 if (sortedSystems.length > 0) {
-                    sortedSystems.forEach(([system, count]) => {
-                        riskData.push([system, `${count} Toxins Flagged`]);
+                    sortedSystems.forEach(([system, nameArray]) => {
+                        // Toxin list split across two rows for better PDF formatting
+                        const toxinList = nameArray.join(', ');
+                        riskData.push(
+                            [system, `${nameArray.length} Toxins Flagged`],
+                            [{ content: `Toxins: ${toxinList}`, colSpan: 2, styles: { fontStyle: 'italic', fontSize: 7, textColor: '#777' } }]
+                        );
                     });
                     
                     doc.autoTable({
