@@ -617,13 +617,15 @@
                             let statusText = data.cell.text.join('').toUpperCase();
                             let textColor = '#333'; 
                             
-                            // *** FIX IMPLEMENTED HERE: Assign color to cell style for jspdf-autotable ***
+                            // *** FINAL FIX IMPLEMENTED HERE: Ensure green is assigned to cell styles ***
                             if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Deep Red
                             } else if (statusText.includes('HIGH')) { textColor = '#ff8c00'; // Orange
                             } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Gold/Yellow
-                            } else if (statusText.includes('IN RANGE')) { textColor = '#28a745'; // Green 
+                            } else if (statusText.includes('IN-RANGE') || statusText.includes('IN RANGE')) { 
+                                textColor = '#28a745'; // Green 
                             }
-                            // This ensures the color is applied correctly by the library
+                            
+                            // Force the color to the cell style
                             data.cell.styles.textColor = textColor;
                         }
                     },
