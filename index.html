@@ -55,6 +55,15 @@
         .upload-label:hover {
             background-color: #a52a2a;
         }
+        .patient-data-input {
+            margin: 5px 0;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 80%;
+            max-width: 300px;
+            box-sizing: border-box;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -100,6 +109,9 @@
 
         <div class="file-upload-container">
             <p id="dictionaryStatus">Status: Loading Dictionary...</p>
+            
+            <input type="text" id="patientNameInput" class="patient-data-input" placeholder="Patient Name (Auto-filled on PDF Upload)">
+            <input type="text" id="patientDobInput" class="patient-data-input" placeholder="Patient DOB (Auto-filled on PDF Upload)">
             
             <input type="file" id="reportFile" accept=".pdf">
             <label for="reportFile" class="upload-label">Upload Toxin Report (PDF)</label>
@@ -202,7 +214,15 @@
 
             try {
                 const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
-                reportData = await extractToxinData(pdf);
+                const extractionResults = await extractToxinData(pdf);
+                
+                reportData = extractionResults.analytes;
+                
+                // --- NEW STEP: Populate Patient Data Fields ---
+                document.getElementById('patientNameInput').value = extractionResults.patientInfo.name || '';
+                document.getElementById('patientDobInput').value = extractionResults.patientInfo.dob || '';
+                // ---------------------------------------------
+                
                 document.getElementById('reportStatus').textContent = `Status: Report parsed with ${reportData.length} analytes detected.`;
                 checkReady();
             } catch (e) {
@@ -211,16 +231,18 @@
             }
         }
 
-        // --- PDF Toxin Data Extraction Logic (Most Robust Version) ---
+        // --- PDF Toxin Data Extraction Logic (Updated for Patient Info) ---
 
         async function extractToxinData(pdf) {
             if (!dictionaryData || dictionaryData.size === 0) {
                  alert('Error: Dictionary not loaded. Cannot extract PDF data.');
-                 return [];
+                 return { analytes: [], patientInfo: {} };
             }
             
             const extractedAnalytes = [];
             const numPages = pdf.numPages;
+            let patientName = '';
+            let patientDOB = '';
 
             const normalizedToxinMap = new Map();
             Array.from(dictionaryData.values()).forEach(entry => {
@@ -232,6 +254,30 @@
                 const textContent = await page.getTextContent();
                 const textItems = textContent.items.map(item => ({ str: cleanText(item.str), transform: item.transform, width: item.width }));
                 
+                // --- NEW LOGIC: Extract Patient Info (Only check on first page) ---
+                if (i === 1) {
+                    const fullText = textItems.map(item => item.str).join(' ');
+                    
+                    let matchName = fullText.match(/Patient: ([^ ]+,\s*[^ ]+)/);
+                    if (matchName) {
+                        patientName = cleanText(matchName[1]);
+                    }
+                    
+                    let matchDob = fullText.match(/Date of birth:\s*(\d{2}\/\d{2}\/\d{4})/);
+                    if (matchDob) {
+                        patientDOB = cleanText(matchDob[1]);
+                    }
+                    // Fallback search for patient name pattern (Kroll, Nick)
+                    if (!patientName) {
+                        const nameIndex = textItems.findIndex(item => item.str.includes('Patient:'));
+                        if (nameIndex !== -1 && textItems.length > nameIndex + 1) {
+                            // Assumes name is the next item (e.g., "Kroll, Nick")
+                            patientName = cleanText(textItems[nameIndex + 1].str);
+                        }
+                    }
+                }
+                // -------------------------------------------------------------
+
                 textItems.forEach((item, nameIndex) => {
                     const normalizedText = normalizeAnalyte(item.str);
                     
@@ -262,11 +308,15 @@
             
             const uniqueAnalytes = Array.from(new Set(extractedAnalytes.map(a => a.Analyte)))
                                         .map(name => extractedAnalytes.find(a => a.Analyte === name));
-            return uniqueAnalytes;
+            
+            return {
+                analytes: uniqueAnalytes,
+                patientInfo: { name: patientName, dob: patientDOB }
+            };
         }
 
 
-        // --- Core Toxin Risk Analysis Logic (Updated to Collect Toxin Names) ---
+        // --- Core Toxin Risk Analysis Logic ---
 
         function evaluateAnalytes() {
             analysisResults = [];
@@ -446,13 +496,18 @@
             }
         }
         
-        // --- PDF Generation Logic ---
+        // --- PDF Generation Logic (Updated with Patient Data) ---
 
         const executePdfDownload = () => {
              if (!analysisResults || analysisResults.length === 0) {
                  alert("Please run the analysis first.");
                  return;
              }
+             
+             // --- GET LIVE PATIENT DATA ---
+             const patientName = document.getElementById('patientNameInput').value;
+             const patientDob = document.getElementById('patientDobInput').value;
+             // -----------------------------
              
              try {
                 const { jsPDF } = window.jspdf;
@@ -464,7 +519,19 @@
                 doc.setFontSize(18);
                 doc.setTextColor('#8B0000');
                 doc.text("Environmental Toxin Analysis Report", margin, finalY);
-                finalY += 30;
+                finalY += 20;
+                
+                // --- NEW: Patient Info Block ---
+                doc.setFontSize(10);
+                doc.setTextColor('#555');
+                if (patientName) {
+                    doc.text(`Patient: ${patientName}`, margin, finalY);
+                }
+                if (patientDob) {
+                    doc.text(`DOB: ${patientDob}`, margin + 200, finalY);
+                }
+                finalY += 30; // Move down after patient info
+                // ---------------------------------
 
                 // --- Summary Data Setup (Recalculate Tally with Names) ---
                 const riskData = [];
@@ -584,7 +651,7 @@
                 }
 
 
-                // --- Detailed Analyte Results Table (Status Color Fix Implemented Here) ---
+                // --- Detailed Analyte Results Table ---
                 doc.setFontSize(18);
                 doc.text("Detailed Analyte Results", margin, finalY);
                 finalY += 15;
@@ -617,7 +684,6 @@
                             let statusText = data.cell.text.join('').toUpperCase();
                             let textColor = '#333'; 
                             
-                            // *** FINAL FIX IMPLEMENTED HERE: Ensure green is assigned to cell styles ***
                             if (statusText.includes('VERY HIGH')) { textColor = '#8B0000'; // Deep Red
                             } else if (statusText.includes('HIGH')) { textColor = '#ff8c00'; // Orange
                             } else if (statusText.includes('ELEVATED')) { textColor = '#ffd700'; // Gold/Yellow
@@ -625,7 +691,6 @@
                                 textColor = '#28a745'; // Green 
                             }
                             
-                            // Force the color to the cell style
                             data.cell.styles.textColor = textColor;
                         }
                     },
@@ -634,7 +699,7 @@
                     }
                 });
                 
-                doc.save("toxin_risk_analysis_report.pdf");
+                doc.save(`toxin_analysis_report_${patientName || 'Patient'}.pdf`);
              } catch (e) {
                  console.error("PDF Generation Error:", e);
                  alert("PDF generation failed. Check the console for error details.");
